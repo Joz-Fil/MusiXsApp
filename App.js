@@ -1,20 +1,65 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useState } from "react";
+import StartScreen from "./src/screens/StartScreen";
+import HomeScreen from "./src/screens/HomeScreen";
+import BuildChordScreen from "./src/screens/BuildChordScreen";
+import ChordResultScreen from "./src/screens/ChordResultScreen";
+import PlaceholderScreen from "./src/screens/PlaceholderScreen";
+
+const PLACEHOLDER_TITLES = {
+  guess: "Guess the Chord",
+  learn: "Learn a Chord",
+  settings: "Settings",
+  history: "History",
+  profile: "Profile",
+};
 
 export default function App() {
-  return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
-  );
-}
+  const [screen, setScreen] = useState("start");
+  const [lastResult, setLastResult] = useState(null);
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+  const goHome = () => setScreen("home");
+
+  if (screen === "start") {
+    return <StartScreen onStart={() => setScreen("home")} />;
+  }
+
+  if (screen === "home") {
+    return <HomeScreen onNavigate={setScreen} />;
+  }
+
+  if (screen === "build") {
+    return (
+      <BuildChordScreen
+        onBack={goHome}
+        onNavigate={setScreen}
+        onBuilt={(result) => {
+          setLastResult(result);
+          setScreen("result");
+        }}
+      />
+    );
+  }
+
+  if (screen === "result") {
+    return (
+      <ChordResultScreen
+        result={lastResult}
+        onNavigate={setScreen}
+        onBuildAnother={() => setScreen("build")}
+      />
+    );
+  }
+
+  if (PLACEHOLDER_TITLES[screen]) {
+    return (
+      <PlaceholderScreen
+        title={PLACEHOLDER_TITLES[screen]}
+        active={["settings", "history", "profile"].includes(screen) ? screen : "home"}
+        onBack={goHome}
+        onNavigate={setScreen}
+      />
+    );
+  }
+
+  return <HomeScreen onNavigate={setScreen} />;
+}
