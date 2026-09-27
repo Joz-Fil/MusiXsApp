@@ -1,24 +1,22 @@
 import React from "react";
 import { View, StyleSheet, SafeAreaView } from "react-native";
-import { colors } from "../theme";
+import { useAppTheme } from "../theme";
 
 export default function ScreenWrapper({ children }) {
+  const { colors } = useAppTheme();
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.bg }]}>
       <View style={styles.content}>{children}</View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
+  safeArea: { flex: 1 },
   content: {
     flex: 1,
     paddingHorizontal: 20,
     paddingTop: 24,
-    paddingBottom: 90, // leaves room for BottomNav
+    paddingBottom: 90,
   },
 });

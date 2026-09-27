@@ -1,19 +1,20 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { colors } from "../theme";
+import { useAppTheme } from "../theme";
 import ScreenWrapper from "../components/ScreenWrapper";
 import BottomNav from "../components/BottomNav";
 
 export default function PlaceholderScreen({ title, active, onBack, onNavigate }) {
+  const { colors } = useAppTheme();
   return (
     <ScreenWrapper>
       <TouchableOpacity onPress={onBack}>
-        <Text style={styles.backBtn}>←</Text>
+        <Text style={[styles.backBtn, { color: colors.purpleLight }]}>←</Text>
       </TouchableOpacity>
-      <Text style={styles.title}>{title}</Text>
+      <Text style={[styles.title, { color: colors.purpleLight }]}>{title}</Text>
 
       <View style={styles.center}>
-        <Text style={styles.mutedText}>
+        <Text style={[styles.mutedText, { color: colors.textMuted }]}>
           This screen isn't built yet — coming in a later pass.
         </Text>
       </View>
@@ -24,26 +25,8 @@ export default function PlaceholderScreen({ title, active, onBack, onNavigate })
 }
 
 const styles = StyleSheet.create({
-  backBtn: {
-    color: colors.purpleLight,
-    fontSize: 18,
-    marginBottom: 4,
-  },
-  title: {
-    color: colors.purpleLight,
-    fontSize: 22,
-    fontWeight: "800",
-    textAlign: "center",
-  },
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 20,
-  },
-  mutedText: {
-    color: colors.textMuted,
-    fontSize: 14,
-    textAlign: "center",
-  },
+  backBtn: { fontSize: 18, marginBottom: 4 },
+  title: { fontSize: 22, fontWeight: "800", textAlign: "center" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 20 },
+  mutedText: { fontSize: 14, textAlign: "center" },
 });

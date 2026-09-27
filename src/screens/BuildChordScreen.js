@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { colors } from "../theme";
+import { useAppTheme } from "../theme";
 import ScreenWrapper from "../components/ScreenWrapper";
 import BottomNav from "../components/BottomNav";
 import { identifyChord, playNotes } from "../utils/musicTheory";
@@ -11,6 +11,7 @@ const GRID = [
 ];
 
 export default function BuildChordScreen({ onBack, onBuilt, onNavigate }) {
+  const { colors } = useAppTheme();
   const [selected, setSelected] = useState([]);
 
   const toggleNote = (note) => {
@@ -21,24 +22,23 @@ export default function BuildChordScreen({ onBack, onBuilt, onNavigate }) {
 
   const handleEnter = () => {
     if (selected.length < 2) return;
-    const chordName = identifyChord(selected);
-    onBuilt({ notes: selected, chordName });
+    onBuilt({ notes: selected, chordName: identifyChord(selected) });
   };
 
   return (
     <ScreenWrapper>
       <TouchableOpacity onPress={onBack}>
-        <Text style={styles.backBtn}>←</Text>
+        <Text style={[styles.backBtn, { color: colors.purpleLight }]}>←</Text>
       </TouchableOpacity>
-      <Text style={styles.title}>MusiXs</Text>
-      <Text style={styles.subtitle}>Build a Chord</Text>
+      <Text style={[styles.title, { color: colors.purpleLight }]}>MusiXs</Text>
+      <Text style={[styles.subtitle, { color: colors.textMuted }]}>Build a Chord</Text>
 
-      <View style={styles.selectedBar}>
+      <View style={[styles.selectedBar, { backgroundColor: colors.surface }]}>
         {selected.length === 0 ? (
-          <Text style={styles.mutedText}>Tap notes below</Text>
+          <Text style={{ color: colors.textMuted, fontSize: 13 }}>Tap notes below</Text>
         ) : (
           selected.map((n) => (
-            <View key={n} style={styles.selectedDot}>
+            <View key={n} style={[styles.selectedDot, { backgroundColor: colors.purple }]}>
               <Text style={styles.selectedDotText}>{n}</Text>
             </View>
           ))
@@ -52,7 +52,7 @@ export default function BuildChordScreen({ onBack, onBuilt, onNavigate }) {
               key={note}
               style={[
                 styles.noteButton,
-                selected.includes(note) && styles.noteButtonActive,
+                { backgroundColor: selected.includes(note) ? colors.purple : colors.surface2 },
               ]}
               onPress={() => toggleNote(note)}
             >
@@ -64,22 +64,28 @@ export default function BuildChordScreen({ onBack, onBuilt, onNavigate }) {
 
       <View style={styles.row}>
         <TouchableOpacity
-          style={[styles.actionButton, { flex: 1 }]}
+          style={[styles.actionButton, { flex: 1, backgroundColor: colors.surface2 }]}
           onPress={() => setSelected([])}
         >
-          <Text style={styles.actionText}>← Clear</Text>
+          <Text style={[styles.actionText, { color: colors.text }]}>← Clear</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.actionButton, { flex: 1, opacity: selected.length ? 1 : 0.5 }]}
+          style={[
+            styles.actionButton,
+            { flex: 1, backgroundColor: colors.surface2, opacity: selected.length ? 1 : 0.5 },
+          ]}
           disabled={selected.length === 0}
           onPress={() => playNotes(selected)}
         >
-          <Text style={styles.actionText}>Play</Text>
+          <Text style={[styles.actionText, { color: colors.text }]}>Play</Text>
         </TouchableOpacity>
       </View>
 
       <TouchableOpacity
-        style={[styles.enterButton, { opacity: selected.length >= 2 ? 1 : 0.5 }]}
+        style={[
+          styles.enterButton,
+          { backgroundColor: colors.purple, opacity: selected.length >= 2 ? 1 : 0.5 },
+        ]}
         disabled={selected.length < 2}
         onPress={handleEnter}
       >
@@ -92,25 +98,10 @@ export default function BuildChordScreen({ onBack, onBuilt, onNavigate }) {
 }
 
 const styles = StyleSheet.create({
-  backBtn: {
-    color: colors.purpleLight,
-    fontSize: 18,
-    marginBottom: 4,
-  },
-  title: {
-    color: colors.purpleLight,
-    fontSize: 22,
-    fontWeight: "800",
-    textAlign: "center",
-  },
-  subtitle: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginBottom: 12,
-    marginTop: 4,
-  },
+  backBtn: { fontSize: 18, marginBottom: 4 },
+  title: { fontSize: 22, fontWeight: "800", textAlign: "center" },
+  subtitle: { fontSize: 13, marginBottom: 12, marginTop: 4 },
   selectedBar: {
-    backgroundColor: colors.surface,
     borderRadius: 12,
     minHeight: 40,
     flexDirection: "row",
@@ -120,63 +111,25 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     padding: 8,
   },
-  mutedText: {
-    color: colors.textMuted,
-    fontSize: 13,
-  },
   selectedDot: {
-    backgroundColor: colors.purple,
     width: 30,
     height: 30,
     borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
   },
-  selectedDotText: {
-    color: "white",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  row: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 10,
-  },
+  selectedDotText: { color: "white", fontSize: 13, fontWeight: "700" },
+  row: { flexDirection: "row", gap: 10, marginBottom: 10 },
   noteButton: {
     flex: 1,
     aspectRatio: 1,
     borderRadius: 10,
-    backgroundColor: colors.surface2,
     alignItems: "center",
     justifyContent: "center",
   },
-  noteButtonActive: {
-    backgroundColor: colors.purple,
-  },
-  noteText: {
-    color: "white",
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  actionButton: {
-    backgroundColor: colors.surface2,
-    borderRadius: 10,
-    padding: 12,
-    alignItems: "center",
-  },
-  actionText: {
-    color: "white",
-    fontWeight: "600",
-  },
-  enterButton: {
-    backgroundColor: colors.purple,
-    borderRadius: 10,
-    padding: 12,
-    alignItems: "center",
-    marginTop: 2,
-  },
-  enterText: {
-    color: "white",
-    fontWeight: "700",
-  },
+  noteText: { color: "white", fontSize: 14, fontWeight: "700" },
+  actionButton: { borderRadius: 10, padding: 12, alignItems: "center" },
+  actionText: { fontWeight: "600" },
+  enterButton: { borderRadius: 10, padding: 12, alignItems: "center", marginTop: 2 },
+  enterText: { color: "white", fontWeight: "700" },
 });

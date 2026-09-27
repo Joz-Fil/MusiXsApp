@@ -1,8 +1,5 @@
 import { createAudioPlayer } from "expo-audio";
 
-// Chord detection logic is plain JS and identical to the web version -
-// nothing here depends on the browser.
-
 export const NOTE_NAMES = ["C", "D", "E", "F", "G", "A", "B"];
 const SEMITONES = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 
@@ -13,6 +10,17 @@ const CHORD_PATTERNS = [
   { name: "Augmented", intervals: [0, 4, 8] },
   { name: "Sus2", intervals: [0, 2, 7] },
   { name: "Sus4", intervals: [0, 5, 7] },
+];
+
+// A small fixed set of known chords used by Guess the Chord, so we always
+// quiz on something with a clean, recognizable name.
+export const KNOWN_CHORDS = [
+  { notes: ["C", "E", "G"], name: "C Major" },
+  { notes: ["D", "F", "A"], name: "D Minor" },
+  { notes: ["E", "G", "B"], name: "E Minor" },
+  { notes: ["F", "A", "C"], name: "F Major" },
+  { notes: ["G", "B", "D"], name: "G Major" },
+  { notes: ["A", "C", "E"], name: "A Minor" },
 ];
 
 export function noteToFrequency(note, octave = 4) {
@@ -44,11 +52,14 @@ function arraysMatch(a, b) {
   return a.length === b.length && a.every((v, i) => v === b[i]);
 }
 
-// ---------- Audio playback ----------
-// React Native has no Web Audio API / oscillators, so instead we generate
-// a short WAV file in memory (raw PCM sine waves summed together) and play
-// it back with expo-av. No sound files or extra assets needed.
+export function sameNotes(a, b) {
+  if (!a || !b || a.length !== b.length) return false;
+  const sa = [...a].sort();
+  const sb = [...b].sort();
+  return sa.every((n, i) => n === sb[i]);
+}
 
+// ---------- Audio playback ----------
 const SAMPLE_RATE = 22050;
 const DURATION_SECONDS = 1.1;
 
@@ -59,7 +70,6 @@ function buildChordWavBase64(notes) {
 
   for (let i = 0; i < numSamples; i++) {
     const t = i / SAMPLE_RATE;
-    // simple fade in/out envelope so notes don't click at the edges
     const fadeIn = Math.min(1, t / 0.02);
     const fadeOut = Math.min(1, (DURATION_SECONDS - t) / 0.25);
     const envelope = Math.min(fadeIn, fadeOut);
@@ -68,12 +78,11 @@ function buildChordWavBase64(notes) {
     for (const f of freqs) {
       sample += Math.sin(2 * Math.PI * f * t);
     }
-    sample = (sample / freqs.length) * envelope * 0.3; // keep headroom
+    sample = (sample / freqs.length) * envelope * 0.3;
     pcm[i] = Math.max(-1, Math.min(1, sample)) * 32767;
   }
 
-  const wavBytes = pcmToWavBytes(pcm, SAMPLE_RATE);
-  return bytesToBase64(wavBytes);
+  return bytesToBase64(pcmToWavBytes(pcm, SAMPLE_RATE));
 }
 
 function pcmToWavBytes(pcm, sampleRate) {
@@ -90,7 +99,7 @@ function pcmToWavBytes(pcm, sampleRate) {
   writeString(view, 8, "WAVE");
   writeString(view, 12, "fmt ");
   view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); // PCM
+  view.setUint16(20, 1, true);
   view.setUint16(22, numChannels, true);
   view.setUint32(24, sampleRate, true);
   view.setUint32(28, byteRate, true);
@@ -103,7 +112,6 @@ function pcmToWavBytes(pcm, sampleRate) {
   for (let i = 0; i < pcm.length; i++, offset += 2) {
     view.setInt16(offset, pcm[i], true);
   }
-
   return new Uint8Array(buffer);
 }
 
@@ -122,7 +130,6 @@ function bytesToBase64(bytes) {
     const b1 = bytes[i];
     const b2 = i + 1 < bytes.length ? bytes[i + 1] : 0;
     const b3 = i + 2 < bytes.length ? bytes[i + 2] : 0;
-
     result += BASE64_CHARS[b1 >> 2];
     result += BASE64_CHARS[((b1 & 3) << 4) | (b2 >> 4)];
     result += i + 1 < bytes.length ? BASE64_CHARS[((b2 & 15) << 2) | (b3 >> 6)] : "=";
@@ -131,7 +138,6 @@ function bytesToBase64(bytes) {
   return result;
 }
 
-// Plays the given notes together as a chord.
 export function playNotes(notes) {
   if (!notes || notes.length === 0) return;
   try {
@@ -139,9 +145,6 @@ export function playNotes(notes) {
     const uri = `data:audio/wav;base64,${base64}`;
     const player = createAudioPlayer({ uri });
     player.play();
-
-    // Release the player a little after the clip ends - no native status
-    // listener needed for a one-shot sound this short.
     setTimeout(() => {
       player.remove();
     }, (DURATION_SECONDS + 0.3) * 1000);

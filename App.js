@@ -1,19 +1,21 @@
 import React, { useState } from "react";
+import { ThemeProvider } from "./src/theme";
 import StartScreen from "./src/screens/StartScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import BuildChordScreen from "./src/screens/BuildChordScreen";
 import ChordResultScreen from "./src/screens/ChordResultScreen";
+import GuessChordScreen from "./src/screens/GuessChordScreen";
+import LearnChordScreen from "./src/screens/LearnChordScreen";
+import SettingsScreen from "./src/screens/SettingsScreen";
 import PlaceholderScreen from "./src/screens/PlaceholderScreen";
 
+// Only History and Profile remain unbuilt at this stage.
 const PLACEHOLDER_TITLES = {
-  guess: "Guess the Chord",
-  learn: "Learn a Chord",
-  settings: "Settings",
   history: "History",
   profile: "Profile",
 };
 
-export default function App() {
+function AppContent() {
   const [screen, setScreen] = useState("start");
   const [lastResult, setLastResult] = useState(null);
 
@@ -50,11 +52,23 @@ export default function App() {
     );
   }
 
+  if (screen === "guess") {
+    return <GuessChordScreen onBack={goHome} onNavigate={setScreen} />;
+  }
+
+  if (screen === "learn") {
+    return <LearnChordScreen onBack={goHome} onNavigate={setScreen} />;
+  }
+
+  if (screen === "settings") {
+    return <SettingsScreen onBack={goHome} onNavigate={setScreen} />;
+  }
+
   if (PLACEHOLDER_TITLES[screen]) {
     return (
       <PlaceholderScreen
         title={PLACEHOLDER_TITLES[screen]}
-        active={["settings", "history", "profile"].includes(screen) ? screen : "home"}
+        active={screen}
         onBack={goHome}
         onNavigate={setScreen}
       />
@@ -62,4 +76,12 @@ export default function App() {
   }
 
   return <HomeScreen onNavigate={setScreen} />;
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
 }

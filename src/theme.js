@@ -1,4 +1,6 @@
-export const colors = {
+import React, { createContext, useContext, useState } from "react";
+
+export const darkColors = {
   bg: "#322f3d",
   surface: "#423f4f",
   surface2: "#4d4a5c",
@@ -11,3 +13,41 @@ export const colors = {
   red: "#f44336",
   redBg: "#c62828",
 };
+
+export const lightColors = {
+  bg: "#f4f1fb",
+  surface: "#ffffff",
+  surface2: "#ede9fb",
+  purple: "#6e4ff0",
+  purpleLight: "#4b33a8",
+  text: "#1a1a1a",
+  textMuted: "#5b5b5b",
+  green: "#2e7d32",
+  greenBg: "#d9f2e1",
+  red: "#c62828",
+  redBg: "#fbe1e1",
+};
+
+const ThemeContext = createContext(null);
+
+export function ThemeProvider({ children }) {
+  const [mode, setMode] = useState("dark"); // "dark" | "light"
+  const colors = mode === "dark" ? darkColors : lightColors;
+
+  const toggleMode = () => setMode((m) => (m === "dark" ? "light" : "dark"));
+
+  return (
+    <ThemeContext.Provider value={{ mode, colors, toggleMode }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+// Hook every screen uses to get current colors + the toggle function.
+export function useAppTheme() {
+  const ctx = useContext(ThemeContext);
+  if (!ctx) {
+    throw new Error("useAppTheme must be used inside a ThemeProvider");
+  }
+  return ctx;
+}

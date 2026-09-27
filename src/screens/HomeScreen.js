@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { colors } from "../theme";
+import { useAppTheme } from "../theme";
 import ScreenWrapper from "../components/ScreenWrapper";
 import BottomNav from "../components/BottomNav";
 
@@ -11,17 +11,18 @@ const OPTIONS = [
 ];
 
 export default function HomeScreen({ onNavigate }) {
+  const { colors } = useAppTheme();
   return (
     <ScreenWrapper>
-      <Text style={styles.title}>MusiXs</Text>
+      <Text style={[styles.title, { color: colors.purpleLight }]}>MusiXs</Text>
       <View style={styles.list}>
         {OPTIONS.map((opt) => (
           <TouchableOpacity
             key={opt.key}
-            style={styles.optionButton}
+            style={[styles.optionButton, { backgroundColor: colors.surface2 }]}
             onPress={() => onNavigate(opt.key)}
           >
-            <Text style={styles.optionText}>{opt.label}</Text>
+            <Text style={[styles.optionText, { color: colors.text }]}>{opt.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -31,24 +32,8 @@ export default function HomeScreen({ onNavigate }) {
 }
 
 const styles = StyleSheet.create({
-  title: {
-    color: colors.purpleLight,
-    fontSize: 22,
-    fontWeight: "800",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  list: {
-    gap: 16,
-  },
-  optionButton: {
-    backgroundColor: colors.surface2,
-    borderRadius: 14,
-    padding: 16,
-  },
-  optionText: {
-    color: "white",
-    fontSize: 15,
-    fontWeight: "600",
-  },
+  title: { fontSize: 22, fontWeight: "800", textAlign: "center", marginBottom: 20 },
+  list: { gap: 16 },
+  optionButton: { borderRadius: 14, padding: 16 },
+  optionText: { fontSize: 15, fontWeight: "600" },
 });
