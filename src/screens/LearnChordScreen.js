@@ -6,7 +6,7 @@ import BottomNav from "../components/BottomNav";
 import { playNotes, NOTE_NAMES } from "../utils/musicTheory";
 
 export default function LearnChordScreen({ onBack, onNavigate }) {
-  const { colors } = useAppTheme();
+  const { colors, mode } = useAppTheme();
   const [activeNote, setActiveNote] = useState(null);
 
   const handlePress = (note) => {
@@ -19,10 +19,11 @@ export default function LearnChordScreen({ onBack, onNavigate }) {
       <TouchableOpacity onPress={onBack}>
         <Text style={[styles.backBtn, { color: colors.purpleLight }]}>←</Text>
       </TouchableOpacity>
-      <Text style={[styles.title, { color: colors.purpleLight }]}>MusiXs</Text>
-      <Text style={[styles.subtitle, { color: colors.textMuted }]}>Learn a Chord</Text>
+      <Text style={[styles.kicker, { color: colors.purpleLight }]}>03 / EXPLORE</Text>
+      <Text style={[styles.title, { color: colors.text }]}>Learn a chord</Text>
+      <Text style={[styles.subtitle, { color: colors.textMuted }]}>Tap a note and listen.</Text>
 
-      <View style={[styles.display, { backgroundColor: colors.surface }]}>
+      <View style={[styles.display, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Text style={[styles.displayText, { color: colors.text }]}>
           {activeNote ? `Note: ${activeNote}` : "Tap a note to hear it"}
         </Text>
@@ -34,11 +35,28 @@ export default function LearnChordScreen({ onBack, onNavigate }) {
             key={note}
             style={[
               styles.noteButton,
-              { backgroundColor: activeNote === note ? colors.purple : colors.surface2 },
+              {
+                backgroundColor: activeNote === note ? colors.purple : colors.surface2,
+                borderColor: activeNote === note ? colors.purple : colors.border,
+              },
             ]}
             onPress={() => handlePress(note)}
           >
-            <Text style={styles.noteText}>{note}</Text>
+            <Text
+              style={[
+                styles.noteText,
+                {
+                  color:
+                    activeNote === note
+                      ? "#ffffff"
+                      : mode === "light"
+                        ? colors.purpleLight
+                        : colors.text,
+                },
+              ]}
+            >
+              {note}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -50,10 +68,12 @@ export default function LearnChordScreen({ onBack, onNavigate }) {
 
 const styles = StyleSheet.create({
   backBtn: { fontSize: 18, marginBottom: 4 },
-  title: { fontSize: 22, fontWeight: "800", textAlign: "center" },
-  subtitle: { fontSize: 13, marginBottom: 16, marginTop: 4, textAlign: "center" },
+  kicker: { fontSize: 10, fontWeight: "800", marginBottom: 6 },
+  title: { fontSize: 26, lineHeight: 32, fontWeight: "800" },
+  subtitle: { fontSize: 13, marginBottom: 16, marginTop: 4 },
   display: {
     borderRadius: 12,
+    borderWidth: 1,
     padding: 20,
     alignItems: "center",
     marginBottom: 20,
@@ -63,7 +83,8 @@ const styles = StyleSheet.create({
   noteButton: {
     width: "22%",
     aspectRatio: 1,
-    borderRadius: 10,
+    borderRadius: 12,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },

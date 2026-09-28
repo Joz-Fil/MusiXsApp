@@ -11,9 +11,13 @@ export default function PlaceholderScreen({ title, active, onBack, onNavigate })
       <TouchableOpacity onPress={onBack}>
         <Text style={[styles.backBtn, { color: colors.purpleLight }]}>←</Text>
       </TouchableOpacity>
-      <Text style={[styles.title, { color: colors.purpleLight }]}>{title}</Text>
+      <Text style={[styles.kicker, { color: colors.purpleLight }]}>MUSIXS / LIBRARY</Text>
+      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
 
       <View style={styles.center}>
+        <View style={[styles.mark, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
+          <Text style={[styles.markText, { color: colors.purpleLight }]}>♫</Text>
+        </View>
         <Text style={[styles.mutedText, { color: colors.textMuted }]}>
           This screen isn't built yet — coming in a later pass.
         </Text>
@@ -26,7 +30,10 @@ export default function PlaceholderScreen({ title, active, onBack, onNavigate })
 
 const styles = StyleSheet.create({
   backBtn: { fontSize: 18, marginBottom: 4 },
-  title: { fontSize: 22, fontWeight: "800", textAlign: "center" },
+  kicker: { fontSize: 10, fontWeight: "800", marginBottom: 6 },
+  title: { fontSize: 28, fontWeight: "800" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 20 },
-  mutedText: { fontSize: 14, textAlign: "center" },
+  mark: { width: 68, height: 68, borderRadius: 18, borderWidth: 1, alignItems: "center", justifyContent: "center", marginBottom: 18 },
+  markText: { fontSize: 30 },
+  mutedText: { fontSize: 14, textAlign: "center", lineHeight: 21 },
 });
