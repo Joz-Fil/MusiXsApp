@@ -41,10 +41,10 @@ export default function LoginModal({ visible, onClose, onSubmit }) {
         style={styles.overlay}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={[styles.panel, { backgroundColor: colors.surface }]}>
+        <View style={[styles.panel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.title, { color: colors.text }]}>Log in</Text>
           <TextInput
-            style={[styles.input, { backgroundColor: colors.surface2, color: colors.text }]}
+            style={[styles.input, { backgroundColor: colors.surface2, borderColor: colors.border, color: colors.text }]}
             placeholder="Username"
             placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
@@ -54,7 +54,7 @@ export default function LoginModal({ visible, onClose, onSubmit }) {
             onChangeText={setUsername}
           />
           <TextInput
-            style={[styles.input, { backgroundColor: colors.surface2, color: colors.text }]}
+            style={[styles.input, { backgroundColor: colors.surface2, borderColor: colors.border, color: colors.text }]}
             placeholder="Password"
             placeholderTextColor={colors.textMuted}
             secureTextEntry
@@ -88,13 +88,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 24,
   },
-  panel: { borderRadius: 16, padding: 22 },
-  title: { fontSize: 22, fontWeight: "800", marginBottom: 18, textAlign: "center" },
-  input: { minHeight: 48, borderRadius: 10, paddingHorizontal: 14, marginBottom: 12, fontSize: 15 },
+  panel: { borderRadius: 16, borderWidth: 1, padding: 22 },
+  title: { fontSize: 24, fontWeight: "800", marginBottom: 18, textAlign: "center" },
+  input: { minHeight: 50, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, marginBottom: 12, fontSize: 15 },
   error: { fontSize: 13, marginBottom: 12, textAlign: "center" },
   primaryButton: {
     minHeight: 48,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 4,

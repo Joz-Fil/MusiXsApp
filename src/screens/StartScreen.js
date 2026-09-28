@@ -8,17 +8,23 @@ export default function StartScreen({ onStart }) {
   return (
     <ScreenWrapper>
       <View style={styles.center}>
-        <Text style={[styles.title, { color: colors.purpleLight }]}>MusiXs</Text>
-        <Image
-          source={require("../assets/musixs-icon.png")}
-          style={styles.icon}
-          resizeMode="contain"
-        />
+        <View style={[styles.brandMark, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Image
+            source={require("../assets/musixs-icon.png")}
+            style={styles.icon}
+            resizeMode="contain"
+          />
+        </View>
+        <Text style={[styles.kicker, { color: colors.purpleLight }]}>MUSIC STUDIO</Text>
+        <Text style={[styles.title, { color: colors.text }]}>MusiXs</Text>
+        <Text style={[styles.subtitle, { color: colors.textMuted }]}>Your next note starts here.</Text>
         <TouchableOpacity
           style={[styles.button, { backgroundColor: colors.purple }]}
           onPress={onStart}
+          accessibilityRole="button"
         >
-          <Text style={styles.buttonText}>Start</Text>
+          <Text style={styles.buttonText}>Start exploring</Text>
+          <Text style={styles.buttonArrow}>→</Text>
         </TouchableOpacity>
       </View>
     </ScreenWrapper>
@@ -26,9 +32,29 @@ export default function StartScreen({ onStart }) {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  title: { position: "absolute", top: 10, fontSize: 22, fontWeight: "800" },
-  icon: { width: 120, height: 120, borderRadius: 28, marginBottom: 36 },
-  button: { borderRadius: 20, paddingVertical: 12, paddingHorizontal: 40 },
-  buttonText: { color: "white", fontSize: 16, fontWeight: "700" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", paddingBottom: 24 },
+  brandMark: {
+    width: 124,
+    height: 124,
+    borderRadius: 28,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 28,
+  },
+  icon: { width: 96, height: 96, borderRadius: 22 },
+  kicker: { fontSize: 11, fontWeight: "800", marginBottom: 8 },
+  title: { fontSize: 36, fontWeight: "800", marginBottom: 8 },
+  subtitle: { fontSize: 15, marginBottom: 30 },
+  button: {
+    width: "100%",
+    minHeight: 56,
+    borderRadius: 12,
+    paddingHorizontal: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  buttonText: { color: "#ffffff", fontSize: 16, fontWeight: "700" },
+  buttonArrow: { color: "#ffffff", fontSize: 22, fontWeight: "500" },
 });

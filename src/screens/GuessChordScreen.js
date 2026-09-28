@@ -15,7 +15,7 @@ function pickRandomChord() {
 }
 
 export default function GuessChordScreen({ onBack, onNavigate }) {
-  const { colors } = useAppTheme();
+  const { colors, mode } = useAppTheme();
   const [target, setTarget] = useState(pickRandomChord);
   const [selected, setSelected] = useState([]);
   const [phase, setPhase] = useState("guessing"); // "guessing" | "correct" | "wrong"
@@ -49,13 +49,17 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
     const isCorrect = phase === "correct";
     return (
       <ScreenWrapper>
-        <Text style={[styles.title, { color: colors.purpleLight }]}>MusiXs</Text>
-        <Text style={[styles.subtitle, { color: colors.textMuted }]}>Guess the Chord</Text>
+        <Text style={[styles.kicker, { color: colors.purpleLight }]}>02 / LISTEN</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Guess the chord</Text>
+        <Text style={[styles.subtitle, { color: colors.textMuted }]}>Your answer</Text>
 
         <View
           style={[
             styles.feedbackBox,
-            { backgroundColor: isCorrect ? colors.greenBg : colors.redBg },
+            {
+              backgroundColor: isCorrect ? colors.greenBg : colors.redBg,
+              borderColor: isCorrect ? colors.green : colors.red,
+            },
           ]}
         >
           {selected.map((n) => (
@@ -99,11 +103,12 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
       <TouchableOpacity onPress={onBack}>
         <Text style={[styles.backBtn, { color: colors.purpleLight }]}>←</Text>
       </TouchableOpacity>
-      <Text style={[styles.title, { color: colors.purpleLight }]}>MusiXs</Text>
-      <Text style={[styles.subtitle, { color: colors.textMuted }]}>Guess the Chord</Text>
+      <Text style={[styles.kicker, { color: colors.purpleLight }]}>02 / LISTEN</Text>
+      <Text style={[styles.title, { color: colors.text }]}>Guess the chord</Text>
+      <Text style={[styles.subtitle, { color: colors.textMuted }]}>Listen closely, then choose your notes.</Text>
 
       <TouchableOpacity
-        style={[styles.hearButton, { backgroundColor: colors.surface }]}
+        style={[styles.hearButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
         onPress={handleHear}
       >
         <Text style={[styles.hearText, { color: colors.text }]}>▶ Hear the chord</Text>
@@ -116,11 +121,27 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
               key={note}
               style={[
                 styles.noteButton,
-                { backgroundColor: selected.includes(note) ? colors.purple : colors.surface2 },
+                {
+                  backgroundColor: selected.includes(note) ? colors.purple : colors.surface2,
+                  borderColor: selected.includes(note) ? colors.purple : colors.border,
+                },
               ]}
               onPress={() => toggleNote(note)}
             >
-              <Text style={styles.noteText}>{note}</Text>
+              <Text
+                style={[
+                  styles.noteText,
+                  {
+                    color: selected.includes(note)
+                      ? "#ffffff"
+                      : mode === "light"
+                        ? colors.purpleLight
+                        : colors.text,
+                  },
+                ]}
+              >
+                {note}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -144,17 +165,19 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
 
 const styles = StyleSheet.create({
   backBtn: { fontSize: 18, marginBottom: 4 },
-  title: { fontSize: 22, fontWeight: "800", textAlign: "center" },
-  subtitle: { fontSize: 13, marginBottom: 16, marginTop: 4, textAlign: "center" },
-  hearButton: { borderRadius: 12, padding: 16, alignItems: "center", marginBottom: 20 },
+  kicker: { fontSize: 10, fontWeight: "800", marginBottom: 6 },
+  title: { fontSize: 26, lineHeight: 32, fontWeight: "800" },
+  subtitle: { fontSize: 13, marginBottom: 16, marginTop: 4 },
+  hearButton: { borderRadius: 12, borderWidth: 1, padding: 16, alignItems: "center", marginBottom: 20 },
   hearText: { fontSize: 15, fontWeight: "700" },
   row: { flexDirection: "row", gap: 10, marginBottom: 10 },
-  noteButton: { flex: 1, aspectRatio: 1, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  noteButton: { flex: 1, aspectRatio: 1, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   noteText: { color: "white", fontSize: 14, fontWeight: "700" },
   enterButton: { borderRadius: 10, padding: 14, alignItems: "center", marginTop: 8 },
   enterText: { color: "white", fontWeight: "700" },
   feedbackBox: {
     borderRadius: 14,
+    borderWidth: 1,
     minHeight: 70,
     flexDirection: "row",
     alignItems: "center",
@@ -174,7 +197,7 @@ const styles = StyleSheet.create({
   feedbackDotText: { fontWeight: "800", color: "#1A1A1A" },
   feedbackLabel: { fontSize: 20, fontWeight: "800", textAlign: "center", marginBottom: 4 },
   feedbackSub: { fontSize: 13, textAlign: "center", marginBottom: 20 },
-  actionButton: { borderRadius: 10, padding: 12, alignItems: "center" },
+  actionButton: { borderRadius: 12, padding: 14, alignItems: "center" },
   actionText: { fontWeight: "600" },
   primaryActionText: { color: "white", fontWeight: "700" },
 });

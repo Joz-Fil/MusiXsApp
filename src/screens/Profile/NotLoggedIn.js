@@ -15,9 +15,10 @@ export default function NotLoggedIn({ onLogin, onBack, onNavigate }) {
         <Text style={[styles.back, { color: colors.purpleLight }]}>←</Text>
       </TouchableOpacity>
       <View style={styles.body}>
-        <View style={[styles.avatar, { backgroundColor: colors.surface2 }]}>
+        <View style={[styles.avatar, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
           <Text style={[styles.avatarText, { color: colors.purpleLight }]}>♫</Text>
         </View>
+        <Text style={[styles.kicker, { color: colors.purpleLight }]}>MUSIXS / ACCOUNT</Text>
         <Text style={[styles.title, { color: colors.text }]}>Your profile</Text>
         <Text style={[styles.subtitle, { color: colors.textMuted }]}>
           Sign in or create an account to get started.
@@ -30,7 +31,7 @@ export default function NotLoggedIn({ onLogin, onBack, onNavigate }) {
           <Text style={styles.primaryText}>Log in</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.secondaryButton, { borderColor: colors.purple }]}
+          style={[styles.secondaryButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
           onPress={() => onNavigate("register")}
           accessibilityRole="button"
         >
@@ -54,11 +55,13 @@ const styles = StyleSheet.create({
     width: 76,
     height: 76,
     borderRadius: 38,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 18,
   },
   avatarText: { fontSize: 30, fontWeight: "700" },
+  kicker: { fontSize: 10, fontWeight: "800", marginBottom: 7 },
   title: { fontSize: 24, fontWeight: "800", marginBottom: 8 },
   subtitle: { fontSize: 15, textAlign: "center", marginBottom: 28 },
   primaryButton: {

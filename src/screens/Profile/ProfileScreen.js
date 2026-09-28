@@ -21,7 +21,7 @@ export default function ProfileScreen({ user, onLogout, onBack, onNavigate }) {
 				</View>
 				<Text style={[styles.title, { color: colors.text }]}>{user.username}</Text>
 				<Text style={[styles.subtitle, { color: colors.textMuted }]}>MusiXs member</Text>
-				<View style={[styles.details, { borderColor: colors.surface2 }]}>
+				<View style={[styles.details, { backgroundColor: colors.surface, borderColor: colors.border }]}>
 					<Text style={[styles.sectionTitle, { color: colors.purpleLight }]}>Account details</Text>
 					<View style={styles.detailRow}>
 						<Text style={[styles.detailLabel, { color: colors.textMuted }]}>Username</Text>
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
 		justifyContent: "space-between",
 		alignItems: "center",
 		borderBottomWidth: 1,
-		borderColor: "rgba(128, 128, 128, 0.2)",
+						borderColor: "rgba(128, 128, 128, 0.16)",
 	},
 	lastDetailRow: { borderBottomWidth: 0 },
 	detailLabel: { fontSize: 14 },

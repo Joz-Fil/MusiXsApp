@@ -30,7 +30,10 @@ export default function RegisterScreen({ onBack, onRegister }) {
     }
   };
 
-  const inputStyle = [styles.input, { backgroundColor: colors.surface2, color: colors.text }];
+  const inputStyle = [
+    styles.input,
+    { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text },
+  ];
 
   return (
     <ScreenWrapper>
@@ -42,8 +45,9 @@ export default function RegisterScreen({ onBack, onRegister }) {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
+          <Text style={[styles.kicker, { color: colors.purpleLight }]}>MUSIXS / ACCOUNT</Text>
           <Text style={[styles.title, { color: colors.text }]}>Create account</Text>
-          <Text style={[styles.subtitle, { color: colors.textMuted }]}>Join MusiXs</Text>
+          <Text style={[styles.subtitle, { color: colors.textMuted }]}>Set up your profile.</Text>
           <TextInput
             style={inputStyle}
             placeholder="Username"
@@ -94,12 +98,13 @@ const styles = StyleSheet.create({
   back: { fontSize: 20, marginBottom: 4 },
   body: { flex: 1 },
   form: { flexGrow: 1, justifyContent: "center", paddingBottom: 24 },
-  title: { fontSize: 24, fontWeight: "800", textAlign: "center", marginBottom: 8 },
+  kicker: { fontSize: 10, fontWeight: "800", textAlign: "center", marginBottom: 8 },
+  title: { fontSize: 26, fontWeight: "800", textAlign: "center", marginBottom: 8 },
   subtitle: { fontSize: 15, textAlign: "center", marginBottom: 24 },
-  input: { minHeight: 48, borderRadius: 10, paddingHorizontal: 14, marginBottom: 12, fontSize: 15 },
+  input: { minHeight: 52, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, marginBottom: 12, fontSize: 15 },
   error: { fontSize: 13, marginBottom: 12, textAlign: "center" },
   button: {
-    minHeight: 50,
+    minHeight: 54,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
