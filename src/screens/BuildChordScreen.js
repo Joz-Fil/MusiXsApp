@@ -11,7 +11,7 @@ const GRID = [
 ];
 
 export default function BuildChordScreen({ onBack, onBuilt, onNavigate }) {
-  const { colors } = useAppTheme();
+  const { colors, mode } = useAppTheme();
   const [selected, setSelected] = useState([]);
 
   const toggleNote = (note) => {
@@ -56,7 +56,20 @@ export default function BuildChordScreen({ onBack, onBuilt, onNavigate }) {
               ]}
               onPress={() => toggleNote(note)}
             >
-              <Text style={styles.noteText}>{note}</Text>
+              <Text
+                style={[
+                  styles.noteText,
+                  {
+                    color: selected.includes(note)
+                      ? "#ffffff"
+                      : mode === "light"
+                        ? colors.purpleLight
+                        : colors.text,
+                  },
+                ]}
+              >
+                {note}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
