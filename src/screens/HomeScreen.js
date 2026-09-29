@@ -9,9 +9,9 @@ import { GlowRings, SpectrumBars } from "../components/AmbientGlow";
 import { useAudio } from "../audio/AudioContext";
 
 const OPTIONS = [
-  { key: "build", label: "Build a Chord" },
-  { key: "guess", label: "Guess the Chord" },
-  { key: "learn", label: "Learn a Chord" },
+  { key: "build", label: "Build a Chord", detail: "Create a new sound", icon: "♫", number: "01" },
+  { key: "guess", label: "Guess the Chord", detail: "Test your ear", icon: "◖♪", number: "02" },
+  { key: "learn", label: "Learn a Chord", detail: "Explore each note", icon: "◉", number: "03" },
 ];
 
 export default function HomeScreen({ onNavigate }) {

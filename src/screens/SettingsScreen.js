@@ -84,7 +84,10 @@ export default function SettingsScreen({ onBack, onNavigate }) {
 const styles = StyleSheet.create({
   backHit: { alignSelf: "flex-start", padding: 4 },
   backBtn: { fontSize: 18, marginBottom: 4 },
-  title: { fontSize: 22, fontWeight: "800", textAlign: "center", marginBottom: 24 },
+  kicker: { fontSize: 10, fontWeight: "800", marginBottom: 6 },
+  title: { fontSize: 28, fontWeight: "800", marginBottom: 26 },
+  sectionLabel: { fontSize: 10, fontWeight: "800", marginBottom: 8 },
+  appearanceLabel: { marginTop: 16 },
   row: {
     borderRadius: 16,
     padding: 16,

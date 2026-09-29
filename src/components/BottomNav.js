@@ -4,10 +4,10 @@ import { useAppTheme } from "../theme";
 import TouchButton from "./TouchButton";
 
 const TABS = [
-  { key: "settings", icon: "⚙" },
-  { key: "home", icon: "⌂" },
-  { key: "history", icon: "▤" },
-  { key: "profile", icon: "☺" },
+  { key: "settings", icon: "⚙", label: "Settings" },
+  { key: "home", icon: "⌂", label: "Home" },
+  { key: "history", icon: "▤", label: "History" },
+  { key: "profile", icon: "☺", label: "Profile" },
 ];
 
 export default function BottomNav({ active, onNavigate }) {
@@ -69,7 +69,15 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     flexDirection: "row",
-    justifyContent: "space-around",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    alignSelf: "center",
+  },
+  item: {
+    flex: 1,
+    height: 56,
+    borderRadius: 12,
     alignItems: "center",
     alignSelf: "center",
   },

@@ -21,6 +21,9 @@ import SettingsScreen from "./src/screens/SettingsScreen";
 import ProfileScreen from "./src/screens/Profile/ProfileScreen";
 import NotLoggedIn from "./src/screens/Profile/NotLoggedIn";
 import RegisterScreen from "./src/screens/Profile/RegisterScreen";
+import ProfileScreen from "./src/screens/Profile/ProfileScreen";
+import NotLoggedIn from "./src/screens/Profile/NotLoggedIn";
+import RegisterScreen from "./src/screens/Profile/RegisterScreen";
 import PlaceholderScreen from "./src/screens/PlaceholderScreen";
 
 // Only History remains unbuilt at this stage.
@@ -62,6 +65,13 @@ function AppContent() {
   }, [primeMenuMusic]);
 
   const goHome = () => setScreen("home");
+  const handleLogin = async (credentials) => {
+    const user = await loginUser(credentials);
+    if (!user) return false;
+    await saveCurrentUser(user.id);
+    setSignedInUser(user);
+    return true;
+  };
 
   // Intro finished -> main menu: the one place the menu music is started.
   // From there it plays at all times, on every screen — chord samples duck it
