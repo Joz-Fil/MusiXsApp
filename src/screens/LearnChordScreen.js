@@ -3,19 +3,22 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useAppTheme } from "../theme";
 import ScreenWrapper from "../components/ScreenWrapper";
 import BottomNav from "../components/BottomNav";
-import { playNotes, NOTE_NAMES } from "../utils/musicTheory";
+import TouchButton from "../components/TouchButton";
+import { NOTE_NAMES } from "../utils/musicTheory";
+import { useAudio } from "../audio/AudioContext";
 
 export default function LearnChordScreen({ onBack, onNavigate }) {
   const { colors } = useAppTheme();
+  const { playChord } = useAudio();
   const [activeNote, setActiveNote] = useState(null);
 
   const handlePress = (note) => {
     setActiveNote(note);
-    playNotes([note]);
+    playChord([note]);
   };
 
   return (
-    <ScreenWrapper>
+    <ScreenWrapper scroll>
       <TouchableOpacity onPress={onBack}>
         <Text style={[styles.backBtn, { color: colors.purpleLight }]}>←</Text>
       </TouchableOpacity>
@@ -30,16 +33,24 @@ export default function LearnChordScreen({ onBack, onNavigate }) {
 
       <View style={styles.grid}>
         {NOTE_NAMES.map((note) => (
-          <TouchableOpacity
+          <TouchButton
             key={note}
             style={[
               styles.noteButton,
-              { backgroundColor: activeNote === note ? colors.purple : colors.surface2 },
+              {
+                backgroundColor: activeNote === note ? colors.purple : colors.surface2,
+                shadowColor: colors.purple,
+                shadowOpacity: activeNote === note ? 0.8 : 0,
+                shadowRadius: 12,
+                shadowOffset: { width: 0, height: 0 },
+                elevation: activeNote === note ? 4 : 0,
+              },
             ]}
+            pressScale={0.88}
             onPress={() => handlePress(note)}
           >
             <Text style={styles.noteText}>{note}</Text>
-          </TouchableOpacity>
+          </TouchButton>
         ))}
       </View>
 

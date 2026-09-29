@@ -1,12 +1,46 @@
 import React from "react";
-import { View, StyleSheet, SafeAreaView } from "react-native";
+import { ScrollView, View, StyleSheet, SafeAreaView } from "react-native";
 import { useAppTheme } from "../theme";
+import BottomNav from "./BottomNav";
 
-export default function ScreenWrapper({ children }) {
+// Screen scaffolding. By default content is a plain flex view. Pass `scroll`
+// on tall screens (the game screens): content becomes scrollable so chord
+// buttons can never slide underneath the floating bottom nav, which is
+// extracted from the children and pinned above the scroll area.
+export default function ScreenWrapper({ children, scroll = false }) {
   const { colors } = useAppTheme();
+
+  if (!scroll) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.bg }]}>
+        <View style={styles.content}>{children}</View>
+      </SafeAreaView>
+    );
+  }
+
+  const items = React.Children.toArray(children);
+  const navItems = [];
+  const flowItems = [];
+  for (const item of items) {
+    if (item && item.type === BottomNav) navItems.push(item);
+    else flowItems.push(item);
+  }
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.bg }]}>
-      <View style={styles.content}>{children}</View>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {flowItems}
+      </ScrollView>
+      {navItems.length > 0 && (
+        <View style={styles.navLayer} pointerEvents="box-none">
+          {navItems}
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -18,5 +52,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 24,
     paddingBottom: 90,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 90,
+  },
+  navLayer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
 });

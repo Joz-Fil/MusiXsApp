@@ -1,7 +1,4 @@
-import { createAudioPlayer } from "expo-audio";
-
-export const NOTE_NAMES = ["C", "D", "E", "F", "G", "A", "B"];
-const SEMITONES = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+export const NOTE_NAMES = ["C", "D", "E", "F", "G", "A", "B"];const SEMITONES = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 
 const CHORD_PATTERNS = [
   { name: "Major", intervals: [0, 4, 7] },
@@ -138,17 +135,18 @@ function bytesToBase64(bytes) {
   return result;
 }
 
-export function playNotes(notes) {
-  if (!notes || notes.length === 0) return;
-  try {
-    const base64 = buildChordWavBase64(notes);
-    const uri = `data:audio/wav;base64,${base64}`;
-    const player = createAudioPlayer({ uri });
-    player.play();
-    setTimeout(() => {
-      player.remove();
-    }, (DURATION_SECONDS + 0.3) * 1000);
-  } catch (err) {
-    console.warn("Playback failed:", err);
-  }
+// Length of every synthesized chord sample; the audio layer uses it as a
+// fallback resume timer in case playback events never arrive.
+export const CHORD_DURATION_SECONDS = DURATION_SECONDS;
+
+// Pure synthesis: PCM -> WAV -> base64 data URI. Playback lives in the audio
+// layer (src/audio/appAudio.js) so it can duck the background music.
+export function buildChordDataUri(notes) {
+  if (!notes || notes.length === 0) return null;
+  return `data:audio/wav;base64,${buildChordWavBase64(notes)}`;
+}
+
+// Shared PCM -> base64 WAV encoder, also used by the generated menu music.
+export function encodeWavBase64(pcm, sampleRate) {
+  return bytesToBase64(pcmToWavBytes(pcm, sampleRate));
 }
