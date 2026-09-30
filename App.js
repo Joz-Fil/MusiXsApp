@@ -79,14 +79,6 @@ function AppContent() {
     startMenuMusic();
   };
 
-  const handleLogin = async (credentials) => {
-    const user = await loginUser(credentials);
-    if (!user) return false;
-    await saveCurrentUser(user.id);
-    setSignedInUser(user);
-    return true;
-  };
-
   // First touch anywhere retries audio that autoplay policies blocked.
   const handleRootTouchStart = () => {
     markAudioUnlocked();
