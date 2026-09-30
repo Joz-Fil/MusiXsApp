@@ -21,9 +21,6 @@ import SettingsScreen from "./src/screens/SettingsScreen";
 import ProfileScreen from "./src/screens/Profile/ProfileScreen";
 import NotLoggedIn from "./src/screens/Profile/NotLoggedIn";
 import RegisterScreen from "./src/screens/Profile/RegisterScreen";
-import ProfileScreen from "./src/screens/Profile/ProfileScreen";
-import NotLoggedIn from "./src/screens/Profile/NotLoggedIn";
-import RegisterScreen from "./src/screens/Profile/RegisterScreen";
 import PlaceholderScreen from "./src/screens/PlaceholderScreen";
 
 // Only History remains unbuilt at this stage.
