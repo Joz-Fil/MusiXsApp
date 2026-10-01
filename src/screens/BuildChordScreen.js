@@ -10,6 +10,7 @@ import NoteBurst from "../components/NoteBurst";
 import ChipsFlow from "../components/ChipsFlow";
 import { identifyChord } from "../utils/musicTheory";
 import { useAudio } from "../audio/AudioContext";
+import { logChordActivity, ACTIVITY_TYPES } from "../db/historyDatabaseService";
 
 // How many chords one build session covers; 1 keeps the original flow.
 const COUNT_OPTIONS = [1, 2, 3, 4, 5];
@@ -69,6 +70,15 @@ export default function BuildChordScreen({ onBack, onBuilt, onNavigate }) {
     if (busyRef.current || phase !== "building" || selected.length < 2) return;
     const chord = { notes: [...selected], chordName: identifyChord(selected) };
     const allChords = [...builtChords, chord];
+    // History: every finished build is recorded. A chord the theory engine
+    // recognises counts as a success; its "(no standard match)" fallback
+    // counts as a failed build. Logging never throws into the UI flow.
+    logChordActivity(
+      ACTIVITY_TYPES.BUILD,
+      chord.chordName,
+      !chord.chordName.includes("(no standard match)"),
+      { notes: chord.notes, index: allChords.length, total: count }
+    );
     if (allChords.length < count) {
       setBuiltChords(allChords);
       setSelected([]);
@@ -352,7 +362,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.8,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
-    elevation: 4,
   },
   selectedDotText: { color: "white", fontSize: 13, fontWeight: "700" },
   row: { flexDirection: "row", gap: 10, marginBottom: 10 },

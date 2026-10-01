@@ -21,12 +21,7 @@ import SettingsScreen from "./src/screens/SettingsScreen";
 import ProfileScreen from "./src/screens/Profile/ProfileScreen";
 import NotLoggedIn from "./src/screens/Profile/NotLoggedIn";
 import RegisterScreen from "./src/screens/Profile/RegisterScreen";
-import PlaceholderScreen from "./src/screens/PlaceholderScreen";
-
-// Only History remains unbuilt at this stage.
-const PLACEHOLDER_TITLES = {
-  history: "History",
-};
+import HistoryScreen from "./src/screens/HistoryScreen";
 
 function AppContent() {
   const { colors } = useAppTheme();
@@ -159,15 +154,8 @@ function AppContent() {
         />
       );
     }
-    if (PLACEHOLDER_TITLES[key]) {
-      return (
-        <PlaceholderScreen
-          title={PLACEHOLDER_TITLES[key]}
-          active={key}
-          onBack={goHome}
-          onNavigate={setScreen}
-        />
-      );
+    if (key === "history") {
+      return <HistoryScreen onBack={goHome} onNavigate={setScreen} />;
     }
     return <HomeScreen onNavigate={setScreen} />;
   };

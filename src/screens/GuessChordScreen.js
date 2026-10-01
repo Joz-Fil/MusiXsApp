@@ -12,6 +12,7 @@ import RoundProgress from "../components/RoundProgress";
 import { runShake, USE_NATIVE_DRIVER } from "../components/anim";
 import { KNOWN_CHORDS, sameNotes } from "../utils/musicTheory";
 import { useAudio } from "../audio/AudioContext";
+import { logChordActivity, ACTIVITY_TYPES } from "../db/historyDatabaseService";
 
 // Easy keeps the original single-chord round; Medium and Hard run sequences.
 const DIFFICULTIES = [
@@ -85,6 +86,13 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
     const isCorrect = sameNotes(selected, target.notes);
     if (!isCorrect) setFirstTry(false);
     setPhase(isCorrect ? "correct" : "wrong");
+    // History: every submitted guess is recorded, correct or not.
+    logChordActivity(
+      ACTIVITY_TYPES.GUESS,
+      target.name,
+      isCorrect,
+      { selected: [...selected], round: roundIndex + 1, totalRounds, difficulty }
+    );
   };
 
   const handleAdvance = () => {

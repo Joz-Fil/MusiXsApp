@@ -141,7 +141,6 @@ export default function ChordResultScreen({ result, onBuildAnother, onNavigate }
                 shadowOpacity: 0.55,
                 shadowRadius: 22,
                 shadowOffset: { width: 0, height: 0 },
-                elevation: 6,
               },
             ]}
           >
