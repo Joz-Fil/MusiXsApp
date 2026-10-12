@@ -239,7 +239,9 @@ export default function BuildChordScreen({ onBack, onBuilt, onNavigate }) {
           </Text>
         ) : (
           <ChipsFlow
+            key={`${selected.join('-')}`}
             items={selected}
+            keyOf={(item) => item}
             gap={8}
             renderItem={(n) => (
               <View style={[styles.selectedDot, { backgroundColor: colors.purple }]}>
@@ -259,6 +261,16 @@ export default function BuildChordScreen({ onBack, onBuilt, onNavigate }) {
           onPress={() => setSelected([])}
         >
           <Text style={[styles.actionText, { color: colors.text }]}>← Clear</Text>
+        </TouchButton>
+        <TouchButton
+          style={[
+            styles.actionButton,
+            { flex: 1, backgroundColor: colors.surface2, opacity: selected.length > 0 && !playing ? 1 : 0.5 },
+          ]}
+          disabled={selected.length === 0 || playing}
+          onPress={() => setSelected((prev) => prev.slice(0, -1))}
+        >
+          <Text style={[styles.actionText, { color: colors.text }]}>⌫ Back</Text>
         </TouchButton>
         <TouchButton
           style={[
