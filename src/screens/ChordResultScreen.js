@@ -8,7 +8,7 @@ import FadeSlide from "../components/FadeSlide";
 import NoteBurst from "../components/NoteBurst";
 import { useAudio } from "../audio/AudioContext";
 
-export default function ChordResultScreen({ result, onBuildAnother, onNavigate }) {
+export default function ChordResultScreen({ result, onBuildAnother, onNavigate, onBack }) {
   const { colors } = useAppTheme();
   const { playChord, playChordSequence, stopChordSequence } = useAudio();
   const [playingIndex, setPlayingIndex] = useState(-1); // chord currently sounding
@@ -84,8 +84,23 @@ export default function ChordResultScreen({ result, onBuildAnother, onNavigate }
     onNavigate(key);
   };
 
+  // Handle back button
+  const handleBack = () => {
+    runRef.current += 1;
+    stopChordSequence();
+    setPlayingIndex(-1);
+    if (onBack) {
+      onBack();
+    } else {
+      onNavigate('home');
+    }
+  };
+
   return (
     <ScreenWrapper scroll>
+      <TouchButton style={styles.backBtnHit} onPress={handleBack} accessibilityLabel="Back">
+        <Text style={[styles.backBtn, { color: colors.purpleLight }]}>←</Text>
+      </TouchButton>
       <Text style={[styles.title, { color: colors.purpleLight }]}>MusiXs</Text>
       <Text style={[styles.subtitle, { color: colors.textMuted }]}>
         {isMulti ? `You built ${chords.length} chords` : "You built a Chord"}
@@ -191,6 +206,8 @@ export default function ChordResultScreen({ result, onBuildAnother, onNavigate }
 }
 
 const styles = StyleSheet.create({
+  backBtn: { fontSize: 18, marginBottom: 4 },
+  backBtnHit: { alignSelf: "flex-start", padding: 4 },
   title: { fontSize: 22, fontWeight: "800", textAlign: "center" },
   subtitle: { fontSize: 13, marginBottom: 16, marginTop: 4, textAlign: "center" },
   resultBox: {

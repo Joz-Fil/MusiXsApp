@@ -104,6 +104,7 @@ function AppContent() {
           result={lastResult}
           onNavigate={setScreen}
           onBuildAnother={() => setScreen("build")}
+          onBack={goHome}
         />
       );
     }
