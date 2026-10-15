@@ -189,9 +189,39 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
           </TouchButton>
         </FadeSlide>
 
+        <View style={[styles.selectedBar, { backgroundColor: colors.glass, borderColor: colors.glassBorder }]}>
+          {selected.length === 0 ? (
+            <Text style={{ color: colors.textMuted, fontSize: 13 }}>
+              Tap notes below
+            </Text>
+          ) : (
+            <ChipsFlow
+              key={selected.join(',')}
+              items={selected}
+              keyOf={(note) => note}
+              gap={8}
+              renderItem={(n) => (
+                <View style={[styles.selectedDot, { backgroundColor: colors.purple }]}>
+                  <Text style={styles.selectedDotText}>{n}</Text>
+                </View>
+              )}
+            />
+          )}
+        </View>
+
         <FadeSlide key={`grid-${roundIndex}`} delay={140}>
           <NoteGrid selected={selected} onToggle={toggleNote} colors={colors} />
         </FadeSlide>
+
+        <View style={styles.row}>
+          <TouchButton
+            style={[styles.actionButton, { flex: 1, backgroundColor: colors.surface2, opacity: selected.length ? 1 : 0.5 }]}
+            disabled={selected.length === 0}
+            onPress={() => setSelected([])}
+          >
+            <Text style={[styles.actionText, { color: colors.text }]}>Clear All</Text>
+          </TouchButton>
+        </View>
 
         <FadeSlide delay={240}>
           <TouchButton
@@ -453,6 +483,28 @@ const styles = StyleSheet.create({
   diffSub: { color: "white", fontSize: 11, marginTop: 2, opacity: 0.85 },
   hearButton: { borderRadius: 14, padding: 16, alignItems: "center", marginBottom: 20 },
   hearText: { fontSize: 15, fontWeight: "700" },
+  selectedBar: {
+    borderRadius: 14,
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+    padding: 8,
+    borderWidth: 1,
+  },
+  selectedDot: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#8b7cf6",
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  selectedDotText: { color: "white", fontSize: 13, fontWeight: "700" },
   row: { flexDirection: "row", gap: 10, marginTop: 14, marginBottom: 10 },
   enterButton: { borderRadius: 12, padding: 14, alignItems: "center", marginTop: 8 },
   enterText: { color: "white", fontWeight: "700" },

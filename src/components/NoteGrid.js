@@ -1,17 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
 import TouchButton from "./TouchButton";
 import AccidentalPicker from "./AccidentalPicker";
-import { SPRING, USE_NATIVE_DRIVER } from "./anim";
+import { USE_NATIVE_DRIVER } from "./anim";
 
 const GRID = [
   ["A", "B", "C", "D"],
   ["E", "F", "G"],
 ];
 
-// The shared A–G note keyboard: keys dip on press (TouchButton) and light up
-// with a springy neon glow while selected. Set `disabled` to make the whole
-// keyboard read-only (e.g. while a built progression is playing back).
+// The shared A–G note keyboard: keys dip on press (TouchButton) and flash violet
+// when tapped. Selected notes show in the panel above, not on the keys themselves.
 // Long press a note to select sharp/flat variants.
 export default function NoteGrid({ selected, onToggle, colors, disabled }) {
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -27,24 +26,22 @@ export default function NoteGrid({ selected, onToggle, colors, disabled }) {
     onToggle(noteWithAccidental);
   };
 
+  const handleNotePress = (note) => {
+    // Normal tap only toggles the natural note (not sharp or flat)
+    onToggle(note);
+  };
+
   return (
     <View>
       {GRID.map((row, i) => (
         <View key={i} style={styles.row}>
           {row.map((note) => {
-            // Check if any variant of this note is selected (natural, sharp, or flat)
-            const isNaturalSelected = selected.includes(note);
-            const isSharpSelected = selected.includes(`${note}#`);
-            const isFlatSelected = selected.includes(`${note}♭`);
-            const isAnyVariantSelected = isNaturalSelected || isSharpSelected || isFlatSelected;
-
             return (
               <NoteKey
                 key={note}
                 note={note}
-                selected={isAnyVariantSelected}
                 colors={colors}
-                onPress={onToggle}
+                onPress={handleNotePress}
                 onLongPress={handleLongPress}
                 disabled={disabled}
               />
@@ -64,15 +61,19 @@ export default function NoteGrid({ selected, onToggle, colors, disabled }) {
   );
 }
 
-function NoteKey({ note, selected, colors, onPress, onLongPress, disabled }) {
-  const glow = useRef(new Animated.Value(selected ? 1 : 0)).current;
+function NoteKey({ note, colors, onPress, onLongPress, disabled }) {
   const longPressTimer = useRef(null);
-
-  useEffect(() => {
-    Animated.spring(glow, { ...SPRING.select, useNativeDriver: USE_NATIVE_DRIVER, toValue: selected ? 1 : 0 }).start();
-  }, [selected, glow]);
+  const flashAnim = useRef(new Animated.Value(0)).current;
 
   const handlePressIn = () => {
+    // Start flash animation
+    Animated.timing(flashAnim, {
+      toValue: 1,
+      duration: 100,
+      useNativeDriver: USE_NATIVE_DRIVER,
+    }).start();
+
+    // Setup long press timer
     if (onLongPress && !disabled) {
       longPressTimer.current = setTimeout(() => {
         onLongPress(note);
@@ -81,6 +82,13 @@ function NoteKey({ note, selected, colors, onPress, onLongPress, disabled }) {
   };
 
   const handlePressOut = () => {
+    // End flash animation
+    Animated.timing(flashAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: USE_NATIVE_DRIVER,
+    }).start();
+
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
@@ -96,14 +104,7 @@ function NoteKey({ note, selected, colors, onPress, onLongPress, disabled }) {
     <TouchButton
       style={[
         styles.key,
-        { backgroundColor: selected ? colors.purple : colors.surface2 },
-        selected && {
-          shadowColor: colors.purple,
-          shadowOpacity: 0.85,
-          shadowRadius: 14,
-          shadowOffset: { width: 0, height: 0 },
-          elevation: 6,
-        },
+        { backgroundColor: colors.surface2 },
       ]}
       pressScale={0.9}
       onPress={handlePress}
@@ -111,7 +112,7 @@ function NoteKey({ note, selected, colors, onPress, onLongPress, disabled }) {
       onPressOut={handlePressOut}
       disabled={disabled}
       accessibilityLabel={`Note ${note}`}
-      accessibilityState={{ selected, disabled: !!disabled }}
+      accessibilityState={{ disabled: !!disabled }}
       accessibilityHint="Long press for sharp or flat"
     >
       <Animated.View
@@ -119,11 +120,9 @@ function NoteKey({ note, selected, colors, onPress, onLongPress, disabled }) {
         style={[
           styles.keyGlow,
           {
-            backgroundColor: colors.purpleLight,
-            opacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0, 0.3] }),
-            // capped at the key's own bounds so a lit key can never paint
-            // over its neighbours — the shadow carries the outer bloom
-            transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [0.75, 1] }) }],
+            backgroundColor: colors.purple,
+            opacity: flashAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.6] }),
+            transform: [{ scale: flashAnim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) }],
           },
         ]}
       />
