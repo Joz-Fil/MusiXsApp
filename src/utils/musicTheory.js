@@ -22,7 +22,18 @@ export const KNOWN_CHORDS = [
 
 export function noteToFrequency(note, octave = 4) {
   const A4 = 440;
-  const semitoneFromC = SEMITONES[note];
+
+  // Parse note to handle sharps (#) and flats (♭)
+  let baseName = note.charAt(0);
+  let accidental = 0;
+
+  if (note.includes('#')) {
+    accidental = 1; // sharp raises by 1 semitone
+  } else if (note.includes('♭')) {
+    accidental = -1; // flat lowers by 1 semitone
+  }
+
+  const semitoneFromC = SEMITONES[baseName] + accidental;
   const semitoneFromA4 = semitoneFromC - 9 + (octave - 4) * 12;
   return A4 * Math.pow(2, semitoneFromA4 / 12);
 }
@@ -30,7 +41,20 @@ export function noteToFrequency(note, octave = 4) {
 export function identifyChord(notes) {
   if (!notes || notes.length < 2) return null;
   const unique = [...new Set(notes)];
-  const semitoneOf = (n) => SEMITONES[n];
+
+  // Helper to get semitone value including accidentals
+  const semitoneOf = (n) => {
+    const baseName = n.charAt(0);
+    let semitone = SEMITONES[baseName];
+
+    if (n.includes('#')) {
+      semitone += 1;
+    } else if (n.includes('♭')) {
+      semitone -= 1;
+    }
+
+    return semitone;
+  };
 
   for (const root of unique) {
     const relative = unique

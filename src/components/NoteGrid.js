@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
 import TouchButton from "./TouchButton";
+import AccidentalPicker from "./AccidentalPicker";
 import { SPRING, USE_NATIVE_DRIVER } from "./anim";
 
 const GRID = [
@@ -11,33 +12,85 @@ const GRID = [
 // The shared A–G note keyboard: keys dip on press (TouchButton) and light up
 // with a springy neon glow while selected. Set `disabled` to make the whole
 // keyboard read-only (e.g. while a built progression is playing back).
+// Long press a note to select sharp/flat variants.
 export default function NoteGrid({ selected, onToggle, colors, disabled }) {
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [pickerNote, setPickerNote] = useState(null);
+
+  const handleLongPress = (note) => {
+    if (disabled) return;
+    setPickerNote(note);
+    setPickerVisible(true);
+  };
+
+  const handlePickerSelect = (noteWithAccidental) => {
+    onToggle(noteWithAccidental);
+  };
+
   return (
     <View>
       {GRID.map((row, i) => (
         <View key={i} style={styles.row}>
-          {row.map((note) => (
-            <NoteKey
-              key={note}
-              note={note}
-              selected={selected.includes(note)}
-              colors={colors}
-              onPress={onToggle}
-              disabled={disabled}
-            />
-          ))}
+          {row.map((note) => {
+            // Check if any variant of this note is selected (natural, sharp, or flat)
+            const isNaturalSelected = selected.includes(note);
+            const isSharpSelected = selected.includes(`${note}#`);
+            const isFlatSelected = selected.includes(`${note}♭`);
+            const isAnyVariantSelected = isNaturalSelected || isSharpSelected || isFlatSelected;
+
+            return (
+              <NoteKey
+                key={note}
+                note={note}
+                selected={isAnyVariantSelected}
+                colors={colors}
+                onPress={onToggle}
+                onLongPress={handleLongPress}
+                disabled={disabled}
+              />
+            );
+          })}
         </View>
       ))}
+
+      <AccidentalPicker
+        visible={pickerVisible}
+        note={pickerNote}
+        colors={colors}
+        onSelect={handlePickerSelect}
+        onClose={() => setPickerVisible(false)}
+      />
     </View>
   );
 }
 
-function NoteKey({ note, selected, colors, onPress, disabled }) {
+function NoteKey({ note, selected, colors, onPress, onLongPress, disabled }) {
   const glow = useRef(new Animated.Value(selected ? 1 : 0)).current;
+  const longPressTimer = useRef(null);
 
   useEffect(() => {
-    Animated.spring(glow, { ...SPRING.select, useNativeDriver: USE_NATIVE_DRIVER }).start();
+    Animated.spring(glow, { ...SPRING.select, useNativeDriver: USE_NATIVE_DRIVER, toValue: selected ? 1 : 0 }).start();
   }, [selected, glow]);
+
+  const handlePressIn = () => {
+    if (onLongPress && !disabled) {
+      longPressTimer.current = setTimeout(() => {
+        onLongPress(note);
+      }, 500);
+    }
+  };
+
+  const handlePressOut = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handlePress = () => {
+    handlePressOut();
+    onPress(note);
+  };
 
   return (
     <TouchButton
@@ -53,10 +106,13 @@ function NoteKey({ note, selected, colors, onPress, disabled }) {
         },
       ]}
       pressScale={0.9}
-      onPress={() => onPress(note)}
+      onPress={handlePress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       disabled={disabled}
       accessibilityLabel={`Note ${note}`}
       accessibilityState={{ selected, disabled: !!disabled }}
+      accessibilityHint="Long press for sharp or flat"
     >
       <Animated.View
         pointerEvents="none"
