@@ -6,6 +6,7 @@ import BottomNav from "../components/BottomNav";
 import TouchButton from "../components/TouchButton";
 import { NOTE_NAMES } from "../utils/musicTheory";
 import { useAudio } from "../audio/AudioContext";
+import { LearnChordIcon } from "../components/ChordIcons";
 
 // Comprehensive chord library with formulas
 const CHORD_LIBRARY = [
@@ -79,6 +80,9 @@ export default function LearnChordScreen({ onBack, onNavigate }) {
       <TouchableOpacity onPress={onBack}>
         <Text style={[styles.backBtn, { color: colors.purpleLight }]}>←</Text>
       </TouchableOpacity>
+      <View style={styles.iconHero}>
+        <LearnChordIcon size={56} colors={colors} />
+      </View>
       <Text style={[styles.title, { color: colors.text }]}>Learn a chord</Text>
       <Text style={[styles.subtitle, { color: colors.textMuted }]}>
         Tap a chord to hear it, then tap individual notes
@@ -113,8 +117,25 @@ export default function LearnChordScreen({ onBack, onNavigate }) {
                   pressScale={0.9}
                   onPress={() => handleNotePress(note, idx)}
                 >
-                  <Text style={[styles.noteChipText, { color: colors.text }]}>{note}</Text>
-                  <Text style={[styles.notePosition, { color: colors.textMuted }]}>
+                  <Text
+                    style={[
+                      styles.noteChipText,
+                      { color: activeNoteIndex === idx ? "#ffffff" : colors.text },
+                    ]}
+                  >
+                    {note}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.notePosition,
+                      {
+                        color:
+                          activeNoteIndex === idx
+                            ? "rgba(255,255,255,0.85)"
+                            : colors.textMuted,
+                      },
+                    ]}
+                  >
                     {idx + 1}
                   </Text>
                 </TouchButton>
@@ -139,34 +160,49 @@ export default function LearnChordScreen({ onBack, onNavigate }) {
               {type} Chords
             </Text>
             <View style={styles.chordGrid}>
-              {CHORD_LIBRARY.filter(c => c.type === type).map((chord, idx) => (
-                <TouchButton
-                  key={`${chord.root}-${chord.type}-${idx}`}
-                  style={[
-                    styles.chordButton,
-                    {
-                      backgroundColor:
-                        selectedChord?.root === chord.root && selectedChord?.type === chord.type
-                          ? colors.purple
-                          : colors.surface2,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                  pressScale={0.92}
-                  onPress={() => handleChordPress(chord)}
-                >
-                  <Text style={[styles.chordButtonText, { color: colors.text }]}>
-                    {chord.root}
-                  </Text>
-                  <Text style={[styles.chordTypeText, { color: colors.textMuted }]}>
-                    {chord.type === "Major" ? "maj" :
-                     chord.type === "Minor" ? "min" :
-                     chord.type === "Diminished" ? "dim" :
-                     chord.type === "Augmented" ? "aug" :
-                     chord.type.toLowerCase()}
-                  </Text>
-                </TouchButton>
-              ))}
+              {CHORD_LIBRARY.filter(c => c.type === type).map((chord, idx) => {
+                const isSelected =
+                  selectedChord?.root === chord.root && selectedChord?.type === chord.type;
+                return (
+                  <TouchButton
+                    key={`${chord.root}-${chord.type}-${idx}`}
+                    style={[
+                      styles.chordButton,
+                      {
+                        backgroundColor: isSelected ? colors.purple : colors.surface2,
+                        borderColor: isSelected ? colors.purple : colors.border,
+                      },
+                    ]}
+                    pressScale={0.92}
+                    onPress={() => handleChordPress(chord)}
+                  >
+                    <Text
+                      style={[
+                        styles.chordButtonText,
+                        { color: isSelected ? "#ffffff" : colors.text },
+                      ]}
+                    >
+                      {chord.root}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.chordTypeText,
+                        {
+                          color: isSelected
+                            ? "rgba(255,255,255,0.85)"
+                            : colors.textMuted,
+                        },
+                      ]}
+                    >
+                      {chord.type === "Major" ? "maj" :
+                       chord.type === "Minor" ? "min" :
+                       chord.type === "Diminished" ? "dim" :
+                       chord.type === "Augmented" ? "aug" :
+                       chord.type.toLowerCase()}
+                    </Text>
+                  </TouchButton>
+                );
+              })}
             </View>
           </View>
         ))}
@@ -179,6 +215,7 @@ export default function LearnChordScreen({ onBack, onNavigate }) {
 
 const styles = StyleSheet.create({
   backBtn: { fontSize: 18, marginBottom: 4 },
+  iconHero: { alignSelf: "flex-start", marginBottom: 12, marginTop: 4 },
   kicker: { fontSize: 10, fontWeight: "800", marginBottom: 6 },
   title: { fontSize: 26, lineHeight: 32, fontWeight: "800" },
   subtitle: { fontSize: 13, marginBottom: 16, marginTop: 4 },

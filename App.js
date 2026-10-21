@@ -1,15 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { StatusBar } from "expo-status-bar";
 import { ThemeProvider, useAppTheme } from "./src/theme";
 import ScreenWrapper from "./src/components/ScreenWrapper";
 import AnimatedSwitch from "./src/components/AnimatedSwitch";
 import {
-  clearCurrentUser,
-  getCurrentUser,
-  loginUser,
-  registerUser,
-  saveCurrentUser,
-} from "./src/db/database";
+  getActiveUser,
+  loginAccount,
+  registerAccount,
+  logoutAccount,
+} from "./src/services/authService";
 import { AudioProvider, useAudio } from "./src/audio/AudioContext";
 import SplashIntroScreen from "./src/screens/SplashIntroScreen";
 import HomeScreen from "./src/screens/HomeScreen";
@@ -24,7 +24,7 @@ import RegisterScreen from "./src/screens/Profile/RegisterScreen";
 import HistoryScreen from "./src/screens/HistoryScreen";
 
 function AppContent() {
-  const { colors } = useAppTheme();
+  const { colors, mode } = useAppTheme();
   const { markAudioUnlocked, startMenuMusic, primeMenuMusic } = useAudio();
   const [screen, setScreen] = useState("intro");
   const [lastResult, setLastResult] = useState(null);
@@ -34,10 +34,10 @@ function AppContent() {
   // has started keeps this effect from firing it up during the intro.
   const musicStarted = useRef(false);
 
-  // Restore the saved SQLite session while the intro plays; nothing blocks.
+  // Restore the saved session while the intro plays; nothing blocks.
   useEffect(() => {
     let mounted = true;
-    getCurrentUser()
+    getActiveUser()
       .then((user) => {
         if (mounted) setSignedInUser(user);
       })
@@ -58,9 +58,8 @@ function AppContent() {
 
   const goHome = () => setScreen("home");
   const handleLogin = async (credentials) => {
-    const user = await loginUser(credentials);
+    const user = await loginAccount(credentials);
     if (!user) return false;
-    await saveCurrentUser(user.id);
     setSignedInUser(user);
     return true;
   };
@@ -133,8 +132,9 @@ function AppContent() {
       return (
         <ProfileScreen
           user={signedInUser}
+          onUserUpdate={(updated) => setSignedInUser(updated)}
           onLogout={async () => {
-            await clearCurrentUser();
+            await logoutAccount();
             setSignedInUser(null);
           }}
           onBack={goHome}
@@ -147,8 +147,7 @@ function AppContent() {
         <RegisterScreen
           onBack={() => setScreen("profile")}
           onRegister={async (account) => {
-            const user = await registerUser(account);
-            await saveCurrentUser(user.id);
+            const user = await registerAccount(account);
             setSignedInUser(user);
             setScreen("profile");
           }}
@@ -163,6 +162,7 @@ function AppContent() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]} onStartShouldSetResponderCapture={handleRootTouchStart}>
+      <StatusBar style={mode === "dark" ? "light" : "dark"} />
       <AnimatedSwitch activeKey={screen} render={renderRoute} />
     </View>
   );

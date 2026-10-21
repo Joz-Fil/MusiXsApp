@@ -104,7 +104,11 @@ function NoteKey({ note, colors, onPress, onLongPress, disabled }) {
     <TouchButton
       style={[
         styles.key,
-        { backgroundColor: colors.surface2 },
+        {
+          backgroundColor: colors.surface2,
+          borderColor: colors.border,
+          borderWidth: 1,
+        },
       ]}
       pressScale={0.9}
       onPress={handlePress}
@@ -126,7 +130,7 @@ function NoteKey({ note, colors, onPress, onLongPress, disabled }) {
           },
         ]}
       />
-      <Text style={styles.keyText}>{note}</Text>
+      <Text style={[styles.keyText, { color: colors.text }]}>{note}</Text>
     </TouchButton>
   );
 }
@@ -149,5 +153,5 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderRadius: 12,
   },
-  keyText: { color: "white", fontSize: 14, fontWeight: "700" },
+  keyText: { fontSize: 14, fontWeight: "700" },
 });

@@ -9,10 +9,12 @@ import NoteGrid from "../components/NoteGrid";
 import NoteBurst from "../components/NoteBurst";
 import ChipsFlow from "../components/ChipsFlow";
 import RoundProgress from "../components/RoundProgress";
+import VictoryCelebration from "../components/VictoryCelebration";
 import { runShake, USE_NATIVE_DRIVER } from "../components/anim";
 import { KNOWN_CHORDS, sameNotes } from "../utils/musicTheory";
 import { useAudio } from "../audio/AudioContext";
 import { logChordActivity, ACTIVITY_TYPES } from "../db/historyDatabaseService";
+import { GuessChordIcon } from "../components/ChordIcons";
 
 // Easy keeps the original single-chord round; Medium and Hard run sequences.
 const DIFFICULTIES = [
@@ -115,6 +117,9 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
         <TouchButton style={styles.backBtnHit} onPress={onBack} accessibilityLabel="Back to home">
           <Text style={[styles.backBtn, { color: colors.purpleLight }]}>←</Text>
         </TouchButton>
+        <View style={styles.iconHero}>
+          <GuessChordIcon size={56} colors={colors} />
+        </View>
         <Text style={[styles.title, { color: colors.purpleLight }]}>MusiXs</Text>
         <Text style={[styles.subtitle, { color: colors.textMuted }]}>Guess the Chord</Text>
 
@@ -129,7 +134,7 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
                   styles.diffChip,
                   {
                     backgroundColor: difficulty === d.key ? colors.purple : colors.glass,
-                    borderColor: difficulty === d.key ? colors.glassBorder : colors.glassBorder,
+                    borderColor: difficulty === d.key ? colors.purple : colors.glassBorder,
                     shadowColor: colors.purple,
                     shadowOpacity: difficulty === d.key ? 0.7 : 0,
                     shadowRadius: 14,
@@ -139,8 +144,23 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
                 pulseKey={difficulty === d.key ? d.key : undefined}
                 onPress={() => handleChooseDifficulty(d.key)}
               >
-                <Text style={styles.diffLabel}>{d.label}</Text>
-                <Text style={styles.diffSub}>
+                <Text
+                  style={[
+                    styles.diffLabel,
+                    { color: difficulty === d.key ? "#ffffff" : colors.text },
+                  ]}
+                >
+                  {d.label}
+                </Text>
+                <Text
+                  style={[
+                    styles.diffSub,
+                    {
+                      color:
+                        difficulty === d.key ? "rgba(255,255,255,0.85)" : colors.textMuted,
+                    },
+                  ]}
+                >
                   {d.chords} chord{d.chords > 1 ? "s" : ""}
                 </Text>
               </TouchButton>
@@ -278,7 +298,14 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
               )}
             />
           </FeedbackCard>
-          {isCorrect && <NoteBurst trigger={1} fireOnMount count={9} color={colors.purpleLight} />}
+          {isCorrect && (
+            <VictoryCelebration
+              colors={colors}
+              streak={streakNow}
+              firstTry={firstTry}
+              chordName={target.name}
+            />
+          )}
         </View>
 
         <FadeSlide delay={120}>
@@ -404,20 +431,34 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
   );
 }
 
-// Feedback card with a shake wobble on wrong answers.
+// Feedback card with a shake wobble on wrong answers and spring pop on correct answers.
 function FeedbackCard({ isCorrect, colors, shake, children }) {
   const shakeValue = useRef(new Animated.Value(0)).current;
+  const scaleValue = useRef(new Animated.Value(isCorrect ? 0.94 : 1)).current;
 
   useEffect(() => {
-    if (shake) runShake(shakeValue).start();
-  }, [shake, shakeValue]);
+    if (shake) {
+      runShake(shakeValue).start();
+    } else if (isCorrect) {
+      Animated.spring(scaleValue, {
+        toValue: 1,
+        friction: 5,
+        tension: 180,
+        useNativeDriver: USE_NATIVE_DRIVER,
+      }).start();
+    }
+  }, [shake, isCorrect, shakeValue, scaleValue]);
 
   return (
     <View style={styles.feedbackWrap}>
       <Animated.View
         style={[
           styles.feedbackBox,
-          { backgroundColor: isCorrect ? colors.greenBg : colors.redBg, transform: [{ translateX: shakeValue }] },
+          {
+            backgroundColor: isCorrect ? colors.greenBg : colors.redBg,
+            borderColor: isCorrect ? colors.green : colors.red,
+            transform: [{ translateX: shakeValue }, { scale: scaleValue }],
+          },
         ]}
       >
         {children}
@@ -434,7 +475,7 @@ function FloatPlusOne({ color }) {
   useEffect(() => {
     const anim = Animated.timing(progress, {
       toValue: 1,
-      duration: 1000,
+      duration: 1100,
       useNativeDriver: USE_NATIVE_DRIVER,
     });
     anim.start(({ finished }) => {
@@ -445,28 +486,28 @@ function FloatPlusOne({ color }) {
 
   if (done) return null;
   return (
-    <Animated.Text
+    <Animated.View
       pointerEvents="none"
       style={[
-        styles.floatPlus,
+        styles.floatPlusWrap,
         {
-          color,
-          opacity: progress.interpolate({ inputRange: [0, 0.6, 1], outputRange: [1, 1, 0] }),
+          opacity: progress.interpolate({ inputRange: [0, 0.7, 1], outputRange: [1, 1, 0] }),
           transform: [
-            { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, -52] }) },
-            { scale: progress.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0.7, 1.15, 1] }) },
+            { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, -56] }) },
+            { scale: progress.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0.6, 1.25, 1] }) },
           ],
         },
       ]}
     >
-      +1
-    </Animated.Text>
+      <Text style={[styles.floatPlus, { color }]}>✨ +1 First Try!</Text>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   backBtn: { fontSize: 18, marginBottom: 4 },
   backBtnHit: { alignSelf: "flex-start", padding: 4 },
+  iconHero: { alignItems: "center", marginBottom: 12, marginTop: 4 },
   title: { fontSize: 22, fontWeight: "800", textAlign: "center" },
   subtitle: { fontSize: 13, marginBottom: 4, marginTop: 4, textAlign: "center" },
   progressText: { fontSize: 12, fontWeight: "600", marginBottom: 8, textAlign: "center" },
@@ -479,8 +520,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: "center",
   },
-  diffLabel: { color: "white", fontSize: 14, fontWeight: "800" },
-  diffSub: { color: "white", fontSize: 11, marginTop: 2, opacity: 0.85 },
+  diffLabel: { fontSize: 14, fontWeight: "800" },
+  diffSub: { fontSize: 11, marginTop: 2 },
   hearButton: { borderRadius: 14, padding: 16, alignItems: "center", marginBottom: 20 },
   hearText: { fontSize: 15, fontWeight: "700" },
   selectedBar: {
@@ -508,10 +549,11 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 10, marginTop: 14, marginBottom: 10 },
   enterButton: { borderRadius: 12, padding: 14, alignItems: "center", marginTop: 8 },
   enterText: { color: "white", fontWeight: "700" },
-  burstArea: { position: "relative" },
+  burstArea: { position: "relative", minHeight: 96, justifyContent: "center" },
   feedbackWrap: { position: "relative" },
   feedbackBox: {
     borderRadius: 16,
+    borderWidth: 1.5,
     minHeight: 74,
     flexDirection: "row",
     alignItems: "center",
@@ -540,12 +582,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   streakText: { fontSize: 12, fontWeight: "800" },
-  floatPlus: {
+  floatPlusWrap: {
     position: "absolute",
-    top: "38%",
+    top: "34%",
     alignSelf: "center",
-    fontSize: 22,
+    zIndex: 25,
+  },
+  floatPlus: {
+    fontSize: 20,
     fontWeight: "900",
+    textShadowColor: "rgba(0,0,0,0.25)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   scoreBox: {
     borderRadius: 18,

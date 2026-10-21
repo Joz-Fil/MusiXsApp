@@ -7,11 +7,12 @@ import TouchButton from "../components/TouchButton";
 import FadeSlide from "../components/FadeSlide";
 import { GlowRings, SpectrumBars } from "../components/AmbientGlow";
 import { useAudio } from "../audio/AudioContext";
+import ChordModeIcon from "../components/ChordIcons";
 
 const OPTIONS = [
-  { key: "build", label: "Build a Chord", detail: "Create a new sound", icon: "♫", number: "01" },
-  { key: "guess", label: "Guess the Chord", detail: "Test your ear", icon: "◖♪", number: "02" },
-  { key: "learn", label: "Learn a Chord", detail: "Explore each note", icon: "◉", number: "03" },
+  { key: "build", label: "Build a Chord", detail: "Create a new sound", number: "01" },
+  { key: "guess", label: "Guess the Chord", detail: "Test your ear", number: "02" },
+  { key: "learn", label: "Learn a Chord", detail: "Explore each note", number: "03" },
 ];
 
 export default function HomeScreen({ onNavigate }) {
@@ -60,7 +61,28 @@ export default function HomeScreen({ onNavigate }) {
               ]}
               onPress={() => onNavigate(opt.key)}
             >
-              <Text style={[styles.optionText, { color: colors.text }]}>{opt.label}</Text>
+              <View style={styles.optionContent}>
+                <ChordModeIcon mode={opt.key} size={50} colors={colors} />
+                <View style={styles.optionTextCol}>
+                  <View style={styles.optionTitleRow}>
+                    <Text style={[styles.optionText, { color: colors.text }]}>{opt.label}</Text>
+                    <View
+                      style={[
+                        styles.numberPill,
+                        { backgroundColor: colors.surface2, borderColor: colors.border },
+                      ]}
+                    >
+                      <Text style={[styles.numberText, { color: colors.purpleLight }]}>
+                        {opt.number}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.detailText, { color: colors.textMuted }]}>
+                    {opt.detail}
+                  </Text>
+                </View>
+                <Text style={[styles.arrowText, { color: colors.purpleLight }]}>→</Text>
+              </View>
             </TouchButton>
           </FadeSlide>
         ))}
@@ -90,9 +112,48 @@ const styles = StyleSheet.create({
   list: { gap: 14 },
   optionButton: {
     borderRadius: 16,
-    padding: 18,
+    padding: 16,
     borderWidth: 1,
   },
-  optionText: { fontSize: 15, fontWeight: "600", letterSpacing: 0.3 },
+  optionContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  optionTextCol: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  optionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  optionText: {
+    fontSize: 16,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+  detailText: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  numberPill: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  numberText: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  arrowText: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginLeft: 4,
+  },
   soundHint: { fontSize: 12, marginTop: 18, textAlign: "center" },
 });

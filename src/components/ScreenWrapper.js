@@ -2,18 +2,31 @@ import React from "react";
 import { ScrollView, View, StyleSheet, SafeAreaView } from "react-native";
 import { useAppTheme } from "../theme";
 import BottomNav from "./BottomNav";
+import { DynamicBackground } from "./DynamicBackground";
 
 // Screen scaffolding. By default content is a plain flex view. Pass `scroll`
 // on tall screens (the game screens): content becomes scrollable so chord
 // buttons can never slide underneath the floating bottom nav, which is
 // extracted from the children and pinned above the scroll area.
-export default function ScreenWrapper({ children, scroll = false }) {
+//
+// Integrated with DynamicBackground to provide interactive, reactive background
+// animations that respond to touches and button presses across the app.
+export default function ScreenWrapper({
+  children,
+  scroll = false,
+  dynamicBackground = true,
+}) {
   const { colors } = useAppTheme();
+
+  const wrapWithBackground = (innerContent) => {
+    if (!dynamicBackground) return innerContent;
+    return <DynamicBackground>{innerContent}</DynamicBackground>;
+  };
 
   if (!scroll) {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.bg }]}>
-        <View style={styles.content}>{children}</View>
+        {wrapWithBackground(<View style={styles.content}>{children}</View>)}
       </SafeAreaView>
     );
   }
@@ -28,18 +41,22 @@ export default function ScreenWrapper({ children, scroll = false }) {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.bg }]}>
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {flowItems}
-      </ScrollView>
-      {navItems.length > 0 && (
-        <View style={styles.navLayer} pointerEvents="box-none">
-          {navItems}
-        </View>
+      {wrapWithBackground(
+        <>
+          <ScrollView
+            style={styles.content}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {flowItems}
+          </ScrollView>
+          {navItems.length > 0 && (
+            <View style={styles.navLayer} pointerEvents="box-none">
+              {navItems}
+            </View>
+          )}
+        </>
       )}
     </SafeAreaView>
   );

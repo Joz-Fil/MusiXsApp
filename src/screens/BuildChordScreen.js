@@ -11,6 +11,7 @@ import ChipsFlow from "../components/ChipsFlow";
 import { identifyChord } from "../utils/musicTheory";
 import { useAudio } from "../audio/AudioContext";
 import { logChordActivity, ACTIVITY_TYPES } from "../db/historyDatabaseService";
+import { BuildChordIcon } from "../components/ChordIcons";
 
 // How many chords one build session covers; 1 keeps the original flow.
 const COUNT_OPTIONS = [1, 2, 3, 4, 5];
@@ -120,6 +121,9 @@ export default function BuildChordScreen({ onBack, onBuilt, onNavigate }) {
         <TouchButton style={styles.backBtnHit} onPress={handleBack} accessibilityLabel="Back to home">
           <Text style={[styles.backBtn, { color: colors.purpleLight }]}>←</Text>
         </TouchButton>
+        <View style={styles.iconHero}>
+          <BuildChordIcon size={56} colors={colors} />
+        </View>
         <Text style={[styles.title, { color: colors.purpleLight }]}>MusiXs</Text>
         <Text style={[styles.subtitle, { color: colors.textMuted }]}>Build a Chord</Text>
 
@@ -134,7 +138,7 @@ export default function BuildChordScreen({ onBack, onBuilt, onNavigate }) {
                   styles.countChip,
                   {
                     backgroundColor: count === n ? colors.purple : colors.glass,
-                    borderColor: colors.glassBorder,
+                    borderColor: count === n ? colors.purple : colors.glassBorder,
                     borderWidth: 1,
                     shadowColor: colors.purple,
                     shadowOpacity: count === n ? 0.7 : 0,
@@ -145,7 +149,7 @@ export default function BuildChordScreen({ onBack, onBuilt, onNavigate }) {
                 pulseKey={count === n ? `count-${n}` : undefined}
                 onPress={() => handleChooseCount(n)}
               >
-                <Text style={styles.countText}>{n}</Text>
+                <Text style={[styles.countText, { color: count === n ? "#ffffff" : colors.text }]}>{n}</Text>
               </TouchButton>
             </FadeSlide>
           ))}
@@ -313,6 +317,7 @@ export default function BuildChordScreen({ onBack, onBuilt, onNavigate }) {
 const styles = StyleSheet.create({
   backBtn: { fontSize: 18, marginBottom: 4 },
   backBtnHit: { alignSelf: "flex-start", padding: 4 },
+  iconHero: { alignItems: "center", marginBottom: 12, marginTop: 4 },
   title: { fontSize: 22, fontWeight: "800", textAlign: "center" },
   subtitle: { fontSize: 13, marginBottom: 12, marginTop: 4 },
   sectionLabel: { fontSize: 15, fontWeight: "700", marginBottom: 12 },
@@ -324,7 +329,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  countText: { color: "white", fontSize: 18, fontWeight: "800" },
+  countText: { fontSize: 18, fontWeight: "800" },
   countHint: { fontSize: 12, marginBottom: 8, textAlign: "center" },
   progressArea: { position: "relative" },
   progressRow: {

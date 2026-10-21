@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, Easing, Platform, Pressable } from "react-native";
 import { SPRING, USE_NATIVE_DRIVER } from "./anim";
+import { useBackgroundInteraction } from "./DynamicBackground";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -27,6 +28,7 @@ export default function TouchButton({
   const scale = useRef(new Animated.Value(1)).current;
   const pulse = useRef(new Animated.Value(0)).current;
   const hover = useRef(new Animated.Value(0)).current;
+  const bgInteraction = useBackgroundInteraction();
   // press depth, hover lift and pulse combine into one transform value
   const transformScale = useRef(
     Animated.multiply(
@@ -56,6 +58,11 @@ export default function TouchButton({
 
   const handlePressIn = (event) => {
     Animated.spring(scale, { toValue: pressScale, speed: 60, bounciness: 4, useNativeDriver: USE_NATIVE_DRIVER }).start();
+    const touch = event?.nativeEvent?.touches?.[0] || event?.nativeEvent;
+    if (touch && touch.pageX != null && touch.pageY != null) {
+      bgInteraction?.triggerRipple(touch.pageX, touch.pageY);
+    }
+    bgInteraction?.triggerSurge(1);
     onPressIn?.(event);
   };
 
@@ -73,6 +80,7 @@ export default function TouchButton({
       easing: Easing.out(Easing.quad),
       useNativeDriver: USE_NATIVE_DRIVER,
     }).start();
+    bgInteraction?.triggerSurge(0.35);
     onHoverIn?.(event);
   };
 
