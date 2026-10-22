@@ -1,4 +1,4 @@
-import { getDatabase } from "./database";
+import { withDatabase } from "./database";
 
 // Activity kinds recorded in chord_history. The CHECK constraint on the
 // table matches these exact strings.
@@ -62,13 +62,15 @@ export async function logChordActivity(
     }
     if (!chordName) throw new Error("Chord history requires a chord name.");
 
-    const database = await getDatabase();
-    await database.runAsync(
-      "INSERT INTO chord_history (activity_type, chord_name, is_success, attempts_details) VALUES (?, ?, ?, ?)",
-      activityType,
-      chordName,
-      isSuccess ? 1 : 0,
-      serializeDetails(details)
+    const serialized = serializeDetails(details);
+    await withDatabase("logChordActivity", (database) =>
+      database.runAsync(
+        "INSERT INTO chord_history (activity_type, chord_name, is_success, attempts_details) VALUES (?, ?, ?, ?)",
+        activityType,
+        chordName,
+        isSuccess ? 1 : 0,
+        serialized
+      )
     );
   } catch (error) {
     console.warn("Chord history log failed:", error);
@@ -83,14 +85,15 @@ export async function logChordActivity(
 export async function getChordHistory(limit = 50, offset = 0): Promise<ChordHistoryRecord[]> {
   const safeLimit = Math.max(1, Math.min(200, Math.floor(limit) || 50));
   const safeOffset = Math.max(0, Math.floor(offset) || 0);
-  const database = await getDatabase();
-  const rows = await database.getAllAsync<ChordHistoryRow>(
-    `SELECT id, activity_type, chord_name, is_success, attempts_details, created_at
+  const rows = await withDatabase("getChordHistory", (database) =>
+    database.getAllAsync<ChordHistoryRow>(
+      `SELECT id, activity_type, chord_name, is_success, attempts_details, created_at
 		 FROM chord_history
 		 ORDER BY created_at DESC, id DESC
 		 LIMIT ? OFFSET ?`,
-    safeLimit,
-    safeOffset
+      safeLimit,
+      safeOffset
+    )
   );
   return rows.map((row) => ({
     id: row.id,
@@ -104,6 +107,7 @@ export async function getChordHistory(limit = 50, offset = 0): Promise<ChordHist
 
 /** Deletes every history record. Throws on database failure. */
 export async function clearChordHistory(): Promise<void> {
-  const database = await getDatabase();
-  await database.runAsync("DELETE FROM chord_history");
+  await withDatabase("clearChordHistory", (database) =>
+    database.runAsync("DELETE FROM chord_history")
+  );
 }

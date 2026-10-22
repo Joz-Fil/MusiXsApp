@@ -9,6 +9,7 @@ import {
   updateUserProfile as localUpdateUserProfile,
   createPasswordResetCode as localCreatePasswordResetCode,
   resetPasswordWithCode as localResetPasswordWithCode,
+  DatabaseUnavailableError,
 } from "../db/database";
 
 export interface UnifiedUser {
@@ -32,6 +33,19 @@ export interface RegisterPayload {
 export interface LoginPayload {
   identifier: string; // can be email OR username
   password: string;
+}
+
+/**
+ * Remembers the local account so the user stays signed in after restarting
+ * the app. Failing to remember the session must not undo a successful
+ * sign-up / log-in, so errors are only logged.
+ */
+async function rememberLocalSession(userId: number): Promise<void> {
+  try {
+    await localSaveCurrentUser(userId);
+  } catch (error) {
+    console.warn("Could not save the local session; you may need to log in again next time:", error);
+  }
 }
 
 export function isValidEmail(email: string): boolean {
@@ -85,10 +99,12 @@ export async function registerAccount({
         isCloud: true,
       };
 
-      await localSaveCurrentUser(1);
+      // The cloud session is persisted by Supabase itself (SecureStore). The
+      // old `localSaveCurrentUser(1)` here pointed the local session at a
+      // local user that usually doesn't exist and failed the foreign key.
       return cloudUser;
     } catch (cloudErr: any) {
-      console.warn("Cloud SQL registration failed, falling back to local:", cloudErr);
+      console.warn("Cloud SQL registration failed:", cloudErr);
       throw cloudErr;
     }
   }
@@ -101,6 +117,7 @@ export async function registerAccount({
     avatar,
     password,
   });
+  await rememberLocalSession(localUser.id);
 
   return {
     id: localUser.id,
@@ -163,6 +180,7 @@ export async function loginAccount({
   });
 
   if (!user) return null;
+  await rememberLocalSession(user.id);
 
   return {
     id: user.id,
@@ -303,7 +321,15 @@ export async function getActiveUser(): Promise<UnifiedUser | null> {
     }
   }
 
-  const local = await localGetCurrentUser();
+  let local;
+  try {
+    local = await localGetCurrentUser();
+  } catch (error) {
+    // Failsafe: an unreachable database at start-up just means "signed out"
+    // instead of an error screen.
+    console.warn("Could not restore the local session:", error);
+    return null;
+  }
   if (!local) return null;
 
   return {
@@ -326,5 +352,12 @@ export async function logoutAccount(): Promise<void> {
       await supabase.auth.signOut();
     } catch {}
   }
-  await localClearCurrentUser();
+  try {
+    await localClearCurrentUser();
+  } catch (error) {
+    // Failsafe: still sign the user out of the UI even if the local session
+    // row couldn't be removed right now.
+    console.warn("Could not clear the local session:", error);
+    if (!(error instanceof DatabaseUnavailableError)) throw error;
+  }
 }
