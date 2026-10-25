@@ -7,11 +7,12 @@ export const TAGLINE = "Learn music theory by touch, not textbook.";
 
 // The menu loop dips to this while a chord sample plays, so the chord's
 // tones stay clearly audible above it.
-const MUSIC_DUCK_VOLUME = 0.04;
+const MUSIC_DUCK_VOLUME = 0;
 const DUCK_FADE_MS = 200;
 const RESUME_FADE_MS = 450;
 
 const MUSIC_VOLUME_DEFAULT = 0.35;
+const NOTE_VOLUME_DEFAULT = 1.0;
 
 // The menu music itself lives in ./lofiLoop — an upbeat 30-second lofi
 // groove generated in code. Its primeMenuMusic is re-exported here so the
@@ -23,6 +24,13 @@ let bgmVolume = MUSIC_VOLUME_DEFAULT;
 let bgmWanted = false; // startMenuMusic has been called; music plays continuously
 let duckCount = 0; // overlapping chord sounds each hold one duck
 let volumeFadeTimer = null;
+let noteVolume = NOTE_VOLUME_DEFAULT;
+let currentChordPlayer = null;
+let resumeDebounceTimer = null;
+let lastPlayChordTimestamp = 0;
+let lastPlayChordKey = "";
+let activeChordPromise = null;
+const MIN_REPEAT_SPAM_BUFFER_MS = 280;
 
 async function ensureAudioMode() {
   try {
@@ -42,7 +50,15 @@ function playBgm() {
       bgmPlayer.loop = true;
       bgmPlayer.volume = bgmVolume;
     }
-    bgmPlayer.play();
+    if (bgmVolume > 0.001) {
+      bgmPlayer.volume = bgmVolume;
+      bgmPlayer.play();
+    } else {
+      bgmPlayer.volume = 0;
+      try {
+        bgmPlayer.pause();
+      } catch (_) {}
+    }
   } catch (err) {
     console.warn("Menu music failed:", err);
   }
@@ -137,9 +153,17 @@ function fadeVolumeTo(target, durationMs) {
     volumeFadeTimer = null;
   }
   if (!bgmPlayer) return;
+  if (bgmVolume <= 0.001) {
+    bgmPlayer.volume = 0;
+    try {
+      bgmPlayer.pause();
+    } catch (_) {}
+    return;
+  }
+  const clampedTarget = Math.max(0, Math.min(bgmVolume, target));
   const from = bgmPlayer.volume;
-  if (Math.abs(target - from) < 0.01) {
-    bgmPlayer.volume = target;
+  if (Math.abs(clampedTarget - from) < 0.01) {
+    bgmPlayer.volume = clampedTarget;
     return;
   }
   const startedAt = Date.now();
@@ -149,8 +173,17 @@ function fadeVolumeTo(target, durationMs) {
       volumeFadeTimer = null;
       return;
     }
+    if (bgmVolume <= 0.001) {
+      bgmPlayer.volume = 0;
+      try {
+        bgmPlayer.pause();
+      } catch (_) {}
+      clearInterval(volumeFadeTimer);
+      volumeFadeTimer = null;
+      return;
+    }
     const t = Math.min(1, (Date.now() - startedAt) / durationMs);
-    bgmPlayer.volume = from + (target - from) * t;
+    bgmPlayer.volume = from + (clampedTarget - from) * t;
     if (t >= 1) {
       clearInterval(volumeFadeTimer);
       volumeFadeTimer = null;
@@ -162,11 +195,27 @@ function fadeVolumeTo(target, durationMs) {
 // overlapping chord sounds resume only after the last one finishes.
 export function duckBackgroundMusic(isDucked) {
   duckCount = isDucked ? duckCount + 1 : Math.max(0, duckCount - 1);
-  if (!bgmPlayer) return;
-  fadeVolumeTo(
-    duckCount > 0 ? MUSIC_DUCK_VOLUME : bgmVolume,
-    duckCount > 0 ? DUCK_FADE_MS : RESUME_FADE_MS
-  );
+  if (resumeDebounceTimer) {
+    clearTimeout(resumeDebounceTimer);
+    resumeDebounceTimer = null;
+  }
+  if (!bgmPlayer || bgmVolume <= 0.001) return;
+
+  if (duckCount > 0) {
+    if (volumeFadeTimer) {
+      clearInterval(volumeFadeTimer);
+      volumeFadeTimer = null;
+    }
+    bgmPlayer.volume = 0;
+  } else {
+    // Debounce the unduck so rapid chord transitions don't bounce the volume
+    resumeDebounceTimer = setTimeout(() => {
+      resumeDebounceTimer = null;
+      if (duckCount === 0 && bgmPlayer && bgmVolume > 0.001) {
+        fadeVolumeTo(bgmVolume, RESUME_FADE_MS);
+      }
+    }, 120);
+  }
 }
 
 // Reference to the settle() of the chord currently sounding, if any. Stored
@@ -178,7 +227,12 @@ let activeChord = null;
 // never overlap) and by stopChordSequence (so leaving a screen mid-progression
 // does not leave a chord ringing behind it).
 export function stopChord() {
-  if (activeChord) activeChord();
+  if (activeChord) {
+    const fn = activeChord;
+    activeChord = null;
+    activeChordPromise = null;
+    fn();
+  }
 }
 
 // Plays a synthesized chord sample and ducks the music around it: the
@@ -192,20 +246,38 @@ export function stopChord() {
 // time — see playChordSequence in src/audio/chordSequence.js.
 export function playChord(notes) {
   if (!notes || notes.length === 0) return Promise.resolve();
+  if (noteVolume <= 0.001) return Promise.resolve();
+  ensureAudioMode();
+
+  const now = Date.now();
+  const chordKey = [...notes].sort().join(",");
+  const elapsed = now - lastPlayChordTimestamp;
+
+  // Buffer: if user is spam-tapping the exact same chord within the cooldown window,
+  // do not tear down and re-create native audio players - let it ring smoothly.
+  if (elapsed < MIN_REPEAT_SPAM_BUFFER_MS && chordKey === lastPlayChordKey && activeChordPromise) {
+    return activeChordPromise;
+  }
+
+  lastPlayChordTimestamp = now;
+  lastPlayChordKey = chordKey;
 
   // Chords never overlap: whatever is still sounding is cut off first.
   stopChord();
 
   let player;
   try {
-    player = createAudioPlayer({ uri: buildChordDataUri(notes) });
+    const uri = buildChordDataUri(notes);
+    if (!uri) return Promise.resolve();
+    player = createAudioPlayer({ uri });
+    player.volume = noteVolume;
   } catch (err) {
     console.warn("Chord playback failed:", err);
     return Promise.resolve();
   }
 
   duckBackgroundMusic(true);
-  return new Promise((resolve) => {
+  const chordPromise = new Promise((resolve) => {
     let settled = false;
     let subscription = null;
     let fallback = null;
@@ -214,9 +286,18 @@ export function playChord(notes) {
       if (settled) return;
       settled = true;
       if (activeChord === settle) activeChord = null;
+      if (activeChordPromise === chordPromise) activeChordPromise = null;
+      if (currentChordPlayer === player) currentChordPlayer = null;
       if (fallback) clearTimeout(fallback);
-      if (subscription && subscription.remove) subscription.remove();
+      if (subscription && subscription.remove) {
+        try {
+          subscription.remove();
+        } catch (_) {}
+      }
       duckBackgroundMusic(false);
+      try {
+        player.pause();
+      } catch (_) {}
       try {
         player.remove();
       } catch (err) {
@@ -233,6 +314,7 @@ export function playChord(notes) {
     fallback = setTimeout(settle, (CHORD_DURATION_SECONDS + 0.5) * 1000);
 
     activeChord = settle;
+    currentChordPlayer = player;
 
     try {
       player.play();
@@ -241,12 +323,15 @@ export function playChord(notes) {
       settle();
     }
   });
+
+  activeChordPromise = chordPromise;
+  return chordPromise;
 }
 
 // Call from the first user touch anywhere: retries the music inside the
 // gesture when autoplay policies blocked the initial attempt.
 export function markAudioUnlocked() {
-  if (bgmWanted && bgmPlayer && !bgmPlayer.playing) playBgm();
+  if (bgmWanted && bgmPlayer && !bgmPlayer.playing && bgmVolume > 0.001) playBgm();
 }
 
 // Music starts once (when the main menu is reached) and then plays
@@ -256,7 +341,9 @@ export function startMenuMusic() {
   ensureAudioMode();
   if (bgmWanted && bgmPlayer && bgmPlayer.playing) return;
   bgmWanted = true;
-  playBgm();
+  if (bgmVolume > 0.001) {
+    playBgm();
+  }
 }
 
 // Stops the menu music and keeps it stopped (unlike a bare pause, the
@@ -270,6 +357,10 @@ export function stopMenuMusic() {
   if (volumeFadeTimer) {
     clearInterval(volumeFadeTimer);
     volumeFadeTimer = null;
+  }
+  if (resumeDebounceTimer) {
+    clearTimeout(resumeDebounceTimer);
+    resumeDebounceTimer = null;
   }
   try {
     if (bgmPlayer) {
@@ -295,8 +386,39 @@ export function getMusicVolume() {
 
 export function setMusicVolume(volume) {
   bgmVolume = Math.max(0, Math.min(1, volume));
-  // While ducked, keep the duck level; the new volume applies on release.
-  if (bgmPlayer && duckCount === 0) {
-    fadeVolumeTo(bgmVolume, 120);
+  if (bgmPlayer) {
+    if (bgmVolume <= 0.001) {
+      bgmPlayer.volume = 0;
+      if (volumeFadeTimer) {
+        clearInterval(volumeFadeTimer);
+        volumeFadeTimer = null;
+      }
+      try {
+        bgmPlayer.pause();
+      } catch (_) {}
+    } else {
+      if (!bgmPlayer.playing && bgmWanted) {
+        try {
+          bgmPlayer.volume = bgmVolume;
+          bgmPlayer.play();
+        } catch (_) {}
+      }
+      if (duckCount === 0) {
+        fadeVolumeTo(bgmVolume, 120);
+      }
+    }
+  }
+}
+
+export function getNoteVolume() {
+  return noteVolume;
+}
+
+export function setNoteVolume(volume) {
+  noteVolume = Math.max(0, Math.min(1, volume));
+  if (currentChordPlayer) {
+    try {
+      currentChordPlayer.volume = noteVolume;
+    } catch (_) {}
   }
 }

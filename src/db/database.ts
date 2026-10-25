@@ -144,6 +144,33 @@ const BASE_SCHEMA_SQL = `
   );
   CREATE INDEX IF NOT EXISTS idx_chord_history_created_at
     ON chord_history (created_at DESC, id DESC);
+  CREATE TABLE IF NOT EXISTS user_progress (
+    level_id TEXT PRIMARY KEY NOT NULL,
+    stars INTEGER NOT NULL DEFAULT 0,
+    score INTEGER NOT NULL DEFAULT 0,
+    completed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS user_stats (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    xp INTEGER NOT NULL DEFAULT 0,
+    streak_count INTEGER NOT NULL DEFAULT 1,
+    last_active_date TEXT,
+    tutorial_completed INTEGER NOT NULL DEFAULT 0,
+    onboarding_answered INTEGER NOT NULL DEFAULT 0,
+    is_beginner INTEGER NOT NULL DEFAULT 1
+  );
+  CREATE TABLE IF NOT EXISTS user_badges (
+    badge_id TEXT PRIMARY KEY NOT NULL,
+    unlocked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS daily_quests (
+    quest_id TEXT NOT NULL,
+    quest_date TEXT NOT NULL,
+    progress INTEGER NOT NULL DEFAULT 0,
+    target INTEGER NOT NULL DEFAULT 1,
+    completed INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (quest_id, quest_date)
+  );
   CREATE TABLE IF NOT EXISTS password_resets (
     email TEXT PRIMARY KEY NOT NULL COLLATE NOCASE,
     code TEXT NOT NULL,
@@ -183,6 +210,18 @@ async function migrateUserSchema(database: SQLite.SQLiteDatabase): Promise<void>
     // Legacy data with duplicate emails: the app still works without the
     // index because registration checks for duplicates itself.
     console.warn("[db] Could not create the unique email index:", error);
+  }
+  try {
+    const statCols = await database.getAllAsync<{ name: string }>("PRAGMA table_info(user_stats)");
+    const statColSet = new Set(statCols.map((c) => c.name));
+    if (!statColSet.has("onboarding_answered")) {
+      await database.execAsync("ALTER TABLE user_stats ADD COLUMN onboarding_answered INTEGER NOT NULL DEFAULT 0;");
+    }
+    if (!statColSet.has("is_beginner")) {
+      await database.execAsync("ALTER TABLE user_stats ADD COLUMN is_beginner INTEGER NOT NULL DEFAULT 1;");
+    }
+  } catch (_) {
+    // user_stats might not exist yet; BASE_SCHEMA_SQL creates it
   }
 }
 

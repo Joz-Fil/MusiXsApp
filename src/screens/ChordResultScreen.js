@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View , Platform} from "react-native";
 import { useAppTheme } from "../theme";
 import ScreenWrapper from "../components/ScreenWrapper";
 import BottomNav from "../components/BottomNav";
@@ -13,6 +13,7 @@ export default function ChordResultScreen({ result, onBuildAnother, onNavigate, 
   const { playChord, playChordSequence, stopChordSequence } = useAudio();
   const [playingIndex, setPlayingIndex] = useState(-1); // chord currently sounding
   const aliveRef = useRef(true);
+  const lastPlayOneRef = useRef(0);
   // Identifies the playback run so a restarted review cannot clear the state
   // of the run that replaced it.
   const runRef = useRef(0);
@@ -45,7 +46,7 @@ export default function ChordResultScreen({ result, onBuildAnother, onNavigate, 
   // pause, chord 2, a 0.5s pause, chord 3 ... via the sequencer shared with
   // the Build a Chord workspace. The rows light up as each chord sounds.
   const handlePlayAll = async () => {
-    if (chords.length === 0) return;
+    if (chords.length === 0 || playing) return;
     const run = (runRef.current += 1);
     setPlayingIndex(0);
 
@@ -61,6 +62,9 @@ export default function ChordResultScreen({ result, onBuildAnother, onNavigate, 
 
   // A single chord tapped from the list supersedes the running progression.
   const handlePlayOne = (notes) => {
+    const now = Date.now();
+    if (now - lastPlayOneRef.current < 300) return;
+    lastPlayOneRef.current = now;
     runRef.current += 1;
     stopChordSequence();
     setPlayingIndex(-1);
@@ -117,11 +121,7 @@ export default function ChordResultScreen({ result, onBuildAnother, onNavigate, 
                     styles.chordRow,
                     {
                       backgroundColor: isSounding ? colors.purple : colors.glass,
-                      borderColor: isSounding ? colors.purple : colors.glassBorder,
-                      shadowColor: colors.purple,
-                      shadowOpacity: isSounding ? 0.7 : 0,
-                      shadowRadius: 14,
-                      shadowOffset: { width: 0, height: 0 },
+                      borderColor: isSounding ? colors.purple : colors.glassBorder,...Platform.select({ ios: { shadowColor: colors.purple, shadowOpacity: isSounding ? 0.7 : 0, shadowRadius: 14, shadowOffset: { width: 0, height: 0 } }, android: { elevation: 0 } }),
                     },
                   ]}
                   onPress={() => handlePlayOne(c.notes)}
@@ -151,11 +151,7 @@ export default function ChordResultScreen({ result, onBuildAnother, onNavigate, 
               {
                 backgroundColor: playing ? colors.purple : colors.glass,
                 borderColor: playing ? colors.purple : colors.glassBorder,
-                borderWidth: 1,
-                shadowColor: colors.purple,
-                shadowOpacity: 0.55,
-                shadowRadius: 22,
-                shadowOffset: { width: 0, height: 0 },
+                borderWidth: 1,...Platform.select({ ios: { shadowColor: colors.purple, shadowOpacity: 0.55, shadowRadius: 22, shadowOffset: { width: 0, height: 0 } }, android: { elevation: 0 } }),
               },
             ]}
           >
@@ -178,14 +174,10 @@ export default function ChordResultScreen({ result, onBuildAnother, onNavigate, 
             styles.primaryButton,
             {
               flex: 1,
-              backgroundColor: colors.purple,
-              shadowColor: colors.purple,
-              shadowOpacity: 0.7,
-              shadowRadius: 14,
-              shadowOffset: { width: 0, height: 0 },
+              backgroundColor: colors.purple,...Platform.select({ ios: { shadowColor: colors.purple, shadowOpacity: 0.7, shadowRadius: 14, shadowOffset: { width: 0, height: 0 } }, android: { elevation: 0 } }),
             },
           ]}
-          disabled={chords.length === 0}
+          disabled={chords.length === 0 || playing}
           onPress={handlePlayAll}
         >
           <Text style={styles.primaryText}>

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 import { ThemeProvider, useAppTheme } from "./src/theme";
 import ScreenWrapper from "./src/components/ScreenWrapper";
 import AnimatedSwitch from "./src/components/AnimatedSwitch";
@@ -13,6 +14,8 @@ import {
 import { AudioProvider, useAudio } from "./src/audio/AudioContext";
 import SplashIntroScreen from "./src/screens/SplashIntroScreen";
 import HomeScreen from "./src/screens/HomeScreen";
+import JourneyScreen from "./src/screens/JourneyScreen";
+import SoundDojoScreen from "./src/screens/SoundDojoScreen";
 import BuildChordScreen from "./src/screens/BuildChordScreen";
 import ChordResultScreen from "./src/screens/ChordResultScreen";
 import GuessChordScreen from "./src/screens/GuessChordScreen";
@@ -78,12 +81,19 @@ function AppContent() {
     markAudioUnlocked();
     return false;
   };
+
   const renderRoute = (key) => {
     if (key === "intro") {
       return <SplashIntroScreen onDone={handleIntroDone} />;
     }
     if (key === "home") {
       return <HomeScreen onNavigate={setScreen} />;
+    }
+    if (key === "journey") {
+      return <JourneyScreen onBack={goHome} onNavigate={setScreen} />;
+    }
+    if (key === "dojo") {
+      return <SoundDojoScreen onBack={goHome} onNavigate={setScreen} />;
     }
     if (key === "build") {
       return (
@@ -170,11 +180,13 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AudioProvider>
-        <AppContent />
-      </AudioProvider>
-    </ThemeProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <ThemeProvider>
+        <AudioProvider>
+          <AppContent />
+        </AudioProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
+import { useAppTheme } from "../theme";
 import { USE_NATIVE_DRIVER } from "./anim";
 
 const CONFETTI_COLORS = [
@@ -43,19 +44,32 @@ function createParticles(count = 24) {
 }
 
 /**
- * High-energy victory celebration animation triggered when the user correctly
- * guesses a chord:
+ * High-energy victory celebration animation:
  * 1. Multi-tier sonic shockwave rings expanding outward.
  * 2. Radial explosive confetti & musical sparkle burst with physics.
  * 3. Bouncy celebratory achievement badge ("PERFECT EAR!", "ON FIRE!", etc.).
  */
 export default function VictoryCelebration({
-  colors,
+  colors: propColors,
   streak = 0,
   firstTry = false,
   chordName = "",
+  showBadge = true,
+  praiseText = "",
+  count = 26,
+  onComplete,
 }) {
-  const particles = useRef(createParticles(26)).current;
+  const theme = useAppTheme();
+  const colors = propColors || theme?.colors || {
+    green: "#48bb78",
+    purple: "#9333ea",
+    purpleLight: "#b49cee",
+    surface: "#181424",
+    border: "#2d2440",
+    text: "#ffffff",
+  };
+
+  const particles = useRef(createParticles(count)).current;
   const animProgress = useRef(new Animated.Value(0)).current;
   const shockwave = useRef(new Animated.Value(0)).current;
   const badgeScale = useRef(new Animated.Value(0.2)).current;
@@ -76,33 +90,39 @@ export default function VictoryCelebration({
       duration: 1300,
       easing: Easing.out(Easing.quad),
       useNativeDriver: USE_NATIVE_DRIVER,
-    }).start();
+    }).start(() => {
+      if (onComplete) onComplete();
+    });
 
     // 3. Celebratory badge spring punch
-    Animated.parallel([
-      Animated.timing(badgeOpacity, {
-        toValue: 1,
-        duration: 250,
-        useNativeDriver: USE_NATIVE_DRIVER,
-      }),
-      Animated.spring(badgeScale, {
-        toValue: 1,
-        friction: 5,
-        tension: 140,
-        useNativeDriver: USE_NATIVE_DRIVER,
-      }),
-    ]).start();
-  }, [animProgress, shockwave, badgeOpacity, badgeScale]);
+    if (showBadge) {
+      Animated.parallel([
+        Animated.timing(badgeOpacity, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: USE_NATIVE_DRIVER,
+        }),
+        Animated.spring(badgeScale, {
+          toValue: 1,
+          friction: 5,
+          tension: 140,
+          useNativeDriver: USE_NATIVE_DRIVER,
+        }),
+      ]).start();
+    }
+  }, [animProgress, shockwave, badgeOpacity, badgeScale, showBadge, onComplete]);
 
   // Determine dynamic celebratory praise
-  let praise = "✨ CHORD SOLVED!";
-  let badgeColor = colors.green;
-  if (streak >= 3) {
-    praise = `🔥 ${streak} IN A ROW!`;
-    badgeColor = "#f59e0b"; // Golden fire
-  } else if (firstTry) {
-    praise = "🎯 PERFECT EAR!";
-    badgeColor = colors.green;
+  let praise = praiseText || "✨ CHORD SOLVED!";
+  let badgeColor = colors.green || "#48bb78";
+  if (!praiseText) {
+    if (streak >= 3) {
+      praise = `🔥 ${streak} IN A ROW!`;
+      badgeColor = "#f59e0b"; // Golden fire
+    } else if (firstTry) {
+      praise = "🎯 PERFECT EAR!";
+      badgeColor = colors.green || "#48bb78";
+    }
   }
 
   return (
@@ -112,7 +132,7 @@ export default function VictoryCelebration({
         style={[
           styles.shockwave,
           {
-            borderColor: colors.green,
+            borderColor: colors.green || "#48bb78",
             opacity: shockwave.interpolate({
               inputRange: [0, 0.4, 1],
               outputRange: [0.8, 0.4, 0],
@@ -132,7 +152,7 @@ export default function VictoryCelebration({
         style={[
           styles.shockwave,
           {
-            borderColor: colors.purpleLight,
+            borderColor: colors.purpleLight || "#b49cee",
             opacity: shockwave.interpolate({
               inputRange: [0, 0.5, 1],
               outputRange: [0.6, 0.3, 0],
@@ -141,7 +161,7 @@ export default function VictoryCelebration({
               {
                 scale: shockwave.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [0.4, 1.8],
+                  outputRange: [0.3, 3.0],
                 }),
               },
             ],
@@ -149,27 +169,32 @@ export default function VictoryCelebration({
         ]}
       />
 
-      {/* Confetti and musical star explosion */}
+      {/* Confetti & musical particles burst */}
       {particles.map((p) => {
         const translateX = animProgress.interpolate({
           inputRange: [0, 1],
           outputRange: [0, p.targetX],
         });
+
+        // Arc gravity fall on the Y axis
         const translateY = animProgress.interpolate({
-          inputRange: [0, 0.4, 1],
-          outputRange: [0, p.targetY, p.targetY + 45], // slight gravity drop
+          inputRange: [0, 0.5, 1],
+          outputRange: [0, p.targetY * 0.7, p.targetY + 40],
         });
+
         const rotate = animProgress.interpolate({
           inputRange: [0, 1],
           outputRange: ["0deg", `${p.spin}deg`],
         });
+
         const opacity = animProgress.interpolate({
-          inputRange: [0, 0.7, 1],
-          outputRange: [1, 0.9, 0],
+          inputRange: [0, 0.1, 0.75, 1],
+          outputRange: [0, 1, 0.85, 0],
         });
+
         const scale = animProgress.interpolate({
-          inputRange: [0, 0.2, 1],
-          outputRange: [0.3, 1.2, 0.6],
+          inputRange: [0, 0.2, 0.8, 1],
+          outputRange: [0.3, 1.2, 1, 0.4],
         });
 
         if (p.isGlyph) {
@@ -179,8 +204,8 @@ export default function VictoryCelebration({
               style={[
                 styles.particleGlyph,
                 {
-                  color: p.color,
                   fontSize: p.size,
+                  color: p.color,
                   opacity,
                   transform: [{ translateX }, { translateY }, { rotate }, { scale }],
                 },
@@ -197,10 +222,10 @@ export default function VictoryCelebration({
             style={[
               styles.confettiPiece,
               {
-                backgroundColor: p.color,
                 width: p.size,
                 height: p.isCircle ? p.size : p.size * 0.6,
                 borderRadius: p.isCircle ? p.size / 2 : 2,
+                backgroundColor: p.color,
                 opacity,
                 transform: [{ translateX }, { translateY }, { rotate }, { scale }],
               },
@@ -209,32 +234,36 @@ export default function VictoryCelebration({
         );
       })}
 
-      {/* Celebratory badge banner */}
-      <Animated.View
-        style={[
-          styles.badgeWrapper,
-          {
-            opacity: badgeOpacity,
-            transform: [{ scale: badgeScale }],
-          },
-        ]}
-      >
-        <View
+      {/* Centered celebratory badge */}
+      {showBadge && (
+        <Animated.View
           style={[
-            styles.badge,
+            styles.badgeWrapper,
             {
-              backgroundColor: colors.surface,
-              borderColor: badgeColor,
-              shadowColor: badgeColor,
+              opacity: badgeOpacity,
+              transform: [{ scale: badgeScale }],
             },
           ]}
         >
-          <Text style={[styles.badgeText, { color: badgeColor }]}>{praise}</Text>
-          {chordName ? (
-            <Text style={[styles.badgeChord, { color: colors.text }]}>{chordName}</Text>
-          ) : null}
-        </View>
-      </Animated.View>
+          <View
+            style={[
+              styles.badge,
+              {
+                backgroundColor: colors.surface || "#181424",
+                borderColor: badgeColor,
+                shadowColor: colors.purple || "#9333ea",
+              },
+            ]}
+          >
+            <Text style={[styles.badgeText, { color: badgeColor }]}>{praise}</Text>
+            {chordName ? (
+              <Text style={[styles.badgeChord, { color: colors.text || "#ffffff" }]}>
+                {chordName}
+              </Text>
+            ) : null}
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -280,7 +309,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 10,
-    elevation: 6,
+    elevation: 0,
   },
   badgeText: {
     fontSize: 13,

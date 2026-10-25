@@ -22,6 +22,9 @@ const CONTROLS = {
   isMusicBlocked: appAudio.isMusicBlocked,
   getMusicVolume: appAudio.getMusicVolume,
   setMusicVolume: appAudio.setMusicVolume,
+  // notes / chords audio volume
+  getNoteVolume: appAudio.getNoteVolume,
+  setNoteVolume: appAudio.setNoteVolume,
   // narration + autoplay unlock
   speakTagline: appAudio.speakTagline,
   markAudioUnlocked: appAudio.markAudioUnlocked,

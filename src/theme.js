@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState } from "react";
+import { Platform } from "react-native";
 
 export const darkColors = {
   bg: "#322f3d",
@@ -14,8 +15,8 @@ export const darkColors = {
   red: "#f44336",
   redBg: "#c62828",
   glow: "rgba(139, 124, 246, 0.55)",
-  glass: "rgba(255, 255, 255, 0.07)",
-  glassBorder: "rgba(255, 255, 255, 0.16)",
+  glass: Platform.OS === "android" ? "#3c3848" : "rgba(255, 255, 255, 0.07)",
+  glassBorder: Platform.OS === "android" ? "#544f63" : "rgba(255, 255, 255, 0.16)",
 };
 
 export const lightColors = {
@@ -32,8 +33,8 @@ export const lightColors = {
   red: "#c62828",
   redBg: "#fbe1e1",
   glow: "rgba(110, 79, 240, 0.30)",
-  glass: "rgba(255, 255, 255, 0.62)",
-  glassBorder: "rgba(110, 79, 240, 0.18)",
+  glass: Platform.OS === "android" ? "#fbf9fe" : "rgba(255, 255, 255, 0.62)",
+  glassBorder: Platform.OS === "android" ? "#ded8f0" : "rgba(110, 79, 240, 0.18)",
 };
 
 const ThemeContext = createContext(null);

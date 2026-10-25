@@ -1,12 +1,16 @@
 export const NOTE_NAMES = ["C", "D", "E", "F", "G", "A", "B"];const SEMITONES = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 
-const CHORD_PATTERNS = [
+export const CHORD_PATTERNS = [
   { name: "Major", intervals: [0, 4, 7] },
   { name: "Minor", intervals: [0, 3, 7] },
   { name: "Diminished", intervals: [0, 3, 6] },
   { name: "Augmented", intervals: [0, 4, 8] },
   { name: "Sus2", intervals: [0, 2, 7] },
   { name: "Sus4", intervals: [0, 5, 7] },
+  { name: "Major 7th", intervals: [0, 4, 7, 11] },
+  { name: "Dominant 7th", intervals: [0, 4, 7, 10] },
+  { name: "Minor 7th", intervals: [0, 3, 7, 10] },
+  { name: "Power 5th", intervals: [0, 7] },
 ];
 
 // A small fixed set of known chords used by Guess the Chord, so we always
@@ -24,16 +28,16 @@ export function noteToFrequency(note, octave = 4) {
   const A4 = 440;
 
   // Parse note to handle sharps (#) and flats (♭)
-  let baseName = note.charAt(0);
+  let baseName = note.charAt(0).toUpperCase();
   let accidental = 0;
 
   if (note.includes('#')) {
     accidental = 1; // sharp raises by 1 semitone
-  } else if (note.includes('♭')) {
+  } else if (note.includes('♭') || note.includes('b')) {
     accidental = -1; // flat lowers by 1 semitone
   }
 
-  const semitoneFromC = SEMITONES[baseName] + accidental;
+  const semitoneFromC = (SEMITONES[baseName] ?? 0) + accidental;
   const semitoneFromA4 = semitoneFromC - 9 + (octave - 4) * 12;
   return A4 * Math.pow(2, semitoneFromA4 / 12);
 }
@@ -82,25 +86,46 @@ export function sameNotes(a, b) {
 
 // ---------- Audio playback ----------
 const SAMPLE_RATE = 22050;
-const DURATION_SECONDS = 1.1;
+const DURATION_SECONDS = 1.3;
 
 function buildChordWavBase64(notes) {
   const numSamples = Math.floor(SAMPLE_RATE * DURATION_SECONDS);
   const pcm = new Int16Array(numSamples);
-  const freqs = notes.map((n) => noteToFrequency(n));
+  // Calculate clean, ascending root-position frequencies for chords
+  const freqs = [];
+  let lastFreq = 0;
+  for (let i = 0; i < notes.length; i++) {
+    let oct = 4;
+    const noteName = notes[i].replace(/[#♭b]/g, '');
+    if (i === 0 && (noteName === 'A' || noteName === 'B') && notes.length > 1) {
+      oct = 3;
+    }
+    let f = noteToFrequency(notes[i], oct);
+    while (lastFreq > 0 && f <= lastFreq) {
+      oct++;
+      f = noteToFrequency(notes[i], oct);
+    }
+    lastFreq = f;
+    freqs.push(f);
+  }
+  const count = Math.max(1, freqs.length);
+  const maxAmplitude = 0.88;
 
   for (let i = 0; i < numSamples; i++) {
     const t = i / SAMPLE_RATE;
     const fadeIn = Math.min(1, t / 0.02);
-    const fadeOut = Math.min(1, (DURATION_SECONDS - t) / 0.25);
+    const fadeOut = Math.min(1, (DURATION_SECONDS - t) / 0.28);
     const envelope = Math.min(fadeIn, fadeOut);
 
     let sample = 0;
     for (const f of freqs) {
-      sample += Math.sin(2 * Math.PI * f * t);
+      sample +=
+        Math.sin(2 * Math.PI * f * t) +
+        0.12 * Math.sin(4 * Math.PI * f * t);
+
     }
-    sample = (sample / freqs.length) * envelope * 0.3;
-    pcm[i] = Math.max(-1, Math.min(1, sample)) * 32767;
+    const normalized = (sample / (count * 1.12)) * envelope * maxAmplitude;
+    pcm[i] = Math.round(normalized * 32767);
   }
 
   return bytesToBase64(pcmToWavBytes(pcm, SAMPLE_RATE));
@@ -162,12 +187,19 @@ function bytesToBase64(bytes) {
 // Length of every synthesized chord sample; the audio layer uses it as a
 // fallback resume timer in case playback events never arrive.
 export const CHORD_DURATION_SECONDS = DURATION_SECONDS;
+const chordDataUriCache = new Map();
 
 // Pure synthesis: PCM -> WAV -> base64 data URI. Playback lives in the audio
 // layer (src/audio/appAudio.js) so it can duck the background music.
 export function buildChordDataUri(notes) {
   if (!notes || notes.length === 0) return null;
-  return `data:audio/wav;base64,${buildChordWavBase64(notes)}`;
+  const cacheKey = [...notes].sort().join(",");
+  if (chordDataUriCache.has(cacheKey)) {
+    return chordDataUriCache.get(cacheKey);
+  }
+  const uri = `data:audio/wav;base64,${buildChordWavBase64(notes)}`;
+  chordDataUriCache.set(cacheKey, uri);
+  return uri;
 }
 
 // Shared PCM -> base64 WAV encoder, also used by the generated menu music.

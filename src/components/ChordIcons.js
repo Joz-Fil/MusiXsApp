@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Platform } from "react-native";
 
 /**
  * Creative icons for MusiXs core modes:
@@ -400,8 +400,64 @@ export function LearnChordIcon({ size = 48, colors, style }) {
 /**
  * Universal selector for chord mode icons
  */
+export function JourneyIcon({ size = 48, colors, style }) {
+  const scale = size / 48;
+  const isDark = colors?.text === "#ffffff";
+
+  return (
+    <View
+      style={[
+        styles.iconContainer,
+        {
+          width: size,
+          height: size,
+          borderRadius: Math.round(14 * scale),
+          backgroundColor: isDark ? "rgba(139, 124, 246, 0.16)" : "rgba(110, 79, 240, 0.12)",
+          borderColor: isDark ? "rgba(180, 156, 238, 0.35)" : "rgba(110, 79, 240, 0.28)",
+        },
+        style,
+      ]}
+      accessibilityRole="image"
+      accessibilityLabel="The Journey Icon"
+    >
+      <Text style={{ fontSize: 22 * scale }}>🗺️</Text>
+    </View>
+  );
+}
+
+export function SoundDojoIcon({ size = 48, colors, style }) {
+  const scale = size / 48;
+  const isDark = colors?.text === "#ffffff";
+
+  return (
+    <View
+      style={[
+        styles.iconContainer,
+        {
+          width: size,
+          height: size,
+          borderRadius: Math.round(14 * scale),
+          backgroundColor: isDark ? "rgba(139, 124, 246, 0.16)" : "rgba(110, 79, 240, 0.12)",
+          borderColor: isDark ? "rgba(180, 156, 238, 0.35)" : "rgba(110, 79, 240, 0.28)",
+        },
+        style,
+      ]}
+      accessibilityRole="image"
+      accessibilityLabel="Sound Dojo Icon"
+    >
+      <Text style={{ fontSize: 22 * scale }}>🥋</Text>
+    </View>
+  );
+}
+
 export default function ChordModeIcon({ mode, size = 48, colors, style }) {
   switch (mode) {
+
+    case "journey":
+      return <JourneyIcon size={size} colors={colors} style={style} />;
+    case "dojo":
+      return <SoundDojoIcon size={size} colors={colors} style={style} />;
+
     case "build":
       return <BuildChordIcon size={size} colors={colors} style={style} />;
     case "guess":
@@ -464,7 +520,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 2,
     shadowOffset: { width: 0, height: 1 },
-    elevation: 2,
+    elevation: 0,
   },
   buildPlus: {
     color: "#ffffff",
@@ -503,7 +559,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },
-    elevation: 3,
+    elevation: 0,
     position: "relative",
   },
   guessQuestionText: {
@@ -548,7 +604,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 2,
     shadowOffset: { width: 0, height: 1 },
-    elevation: 2,
+    elevation: 0,
   },
   learnLens: {
     position: "absolute",
@@ -558,7 +614,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },
-    elevation: 4,
+    elevation: 0,
   },
   learnLensSymbol: {
     color: "#ffffff",

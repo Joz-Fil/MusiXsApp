@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.45,
     shadowRadius: 18,
-    elevation: 10,
+    elevation: 0,
     alignItems: "center",
     justifyContent: "center",
   },

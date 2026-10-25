@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -13,25 +13,76 @@ import ScreenWrapper from "../../components/ScreenWrapper";
 import { useAppTheme } from "../../theme";
 import { isSupabaseConfigured } from "../../services/supabase";
 import { updateUserAccount } from "../../services/authService";
+import {
+  getProfileDraftSession,
+  updateProfileDraftSession,
+  resetProfileDraftSession,
+} from "../../services/sessionStore";
+import {
+  getUserStats,
+  getBadges,
+  getLevelProgress,
+  getGraduationProgress,
+  UserStats,
+  BadgeDefinition,
+} from "../../services/learningService";
 
 const AVATAR_OPTIONS = ["🎵", "🎸", "🎹", "🎧", "🎼", "🎷", "🎤", "⚡", "🌟", "🥁"];
 
 export default function ProfileScreen({ user, onUserUpdate, onLogout, onBack, onNavigate }) {
   const { colors } = useAppTheme();
+  const savedDraft = getProfileDraftSession();
   const [currentUser, setCurrentUser] = useState(user);
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [selectedAvatar, setSelectedAvatar] = useState(currentUser.avatar || "🎵");
-  const [displayNameInput, setDisplayNameInput] = useState(currentUser.displayName || currentUser.username || "");
+  const [editModalVisible, setEditModalVisible] = useState(savedDraft.editModalVisible);
+  const [selectedAvatar, setSelectedAvatar] = useState(savedDraft.selectedAvatar || currentUser.avatar || "🎵");
+  const [displayNameInput, setDisplayNameInput] = useState(
+    savedDraft.displayNameInput !== null
+      ? savedDraft.displayNameInput
+      : (currentUser.displayName || currentUser.username || "")
+  );
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState("");
+  const [stats, setStats] = useState(null);
+  const [badges, setBadges] = useState([]);
+  const [selectedBadge, setSelectedBadge] = useState(savedDraft.selectedBadge);
+
+  const leave = (go) => {
+    updateProfileDraftSession({
+      editModalVisible,
+      selectedAvatar,
+      displayNameInput,
+      selectedBadge,
+    });
+    go();
+  };
+
+  const handleBack = () => leave(onBack);
+  const handleNavigate = (key) => leave(() => onNavigate(key));
+  const [journeyProgress, setJourneyProgress] = useState({});
 
   const isCloud = currentUser?.isCloud ?? isSupabaseConfigured();
 
+  useEffect(() => {
+    getUserStats().then(setStats).catch(() => {});
+    getBadges().then(setBadges).catch(() => {});
+    getLevelProgress().then(setJourneyProgress).catch(() => {});
+  }, []);
+
+  const gradProgress = getGraduationProgress(stats || {}, journeyProgress);
+
   const openEditModal = () => {
-    setSelectedAvatar(currentUser.avatar || "🎵");
-    setDisplayNameInput(currentUser.displayName || currentUser.username || "");
+    const av = selectedAvatar || currentUser.avatar || "🎵";
+    const dn = displayNameInput || currentUser.displayName || currentUser.username || "";
+    setSelectedAvatar(av);
+    setDisplayNameInput(dn);
     setEditError("");
     setEditModalVisible(true);
+    updateProfileDraftSession({ editModalVisible: true, selectedAvatar: av, displayNameInput: dn });
+  };
+
+  const closeEditModal = () => {
+    setEditModalVisible(false);
+    resetProfileDraftSession();
   };
 
   const saveProfile = async () => {
@@ -50,6 +101,7 @@ export default function ProfileScreen({ user, onUserUpdate, onLogout, onBack, on
       });
       setCurrentUser(updated);
       if (onUserUpdate) onUserUpdate(updated);
+      resetProfileDraftSession();
       setEditModalVisible(false);
     } catch (err) {
       setEditError(err.message || "Failed to update profile.");
@@ -59,12 +111,12 @@ export default function ProfileScreen({ user, onUserUpdate, onLogout, onBack, on
   };
 
   return (
-    <ScreenWrapper>
-      <TouchableOpacity onPress={onBack} accessibilityRole="button" accessibilityLabel="Back to home">
+    <ScreenWrapper scroll>
+      <TouchableOpacity onPress={handleBack} accessibilityRole="button" accessibilityLabel="Back to home">
         <Text style={[styles.back, { color: colors.purpleLight }]}>←</Text>
       </TouchableOpacity>
       <View style={styles.body}>
-        <Text style={[styles.heading, { color: colors.text }]}>My profile</Text>
+        <Text style={[styles.heading, { color: colors.text }]}>My Profile</Text>
 
         {/* Avatar with Edit Badge */}
         <TouchableOpacity
@@ -102,8 +154,160 @@ export default function ProfileScreen({ user, onUserUpdate, onLogout, onBack, on
           </Text>
         </TouchableOpacity>
 
+        {/* Musical Stats & Level Progress Card */}
+        {stats && (
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.cardHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.levelKicker, { color: colors.purpleLight }]}>
+                  LEVEL {stats.level}
+                </Text>
+                <Text style={[styles.levelTitleText, { color: colors.text }]}>
+                  {stats.title}
+                </Text>
+                <Text style={[styles.xpRatio, { color: colors.textMuted }]}>
+                  {stats.xp} / {stats.nextLevelXp} XP ({stats.progressPercent}%)
+                </Text>
+              </View>
+              <View style={[styles.streakBadge, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
+                <Text style={styles.streakEmoji}>🔥</Text>
+                <Text style={[styles.streakCountText, { color: colors.purpleLight }]}>
+                  {stats.streakCount}d
+                </Text>
+              </View>
+            </View>
+            <View style={[styles.xpBarTrack, { backgroundColor: colors.surface2 }]}>
+              <View
+                style={[
+                  styles.xpBarFill,
+                  { width: `${stats.progressPercent}%`, backgroundColor: colors.purple },
+                ]}
+              />
+            </View>
+          </View>
+        )}
+
+        {/* Road to Intermediate Graduation Card */}
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.surface,
+              borderColor: gradProgress.isGraduated ? colors.green : colors.border,
+            },
+          ]}
+        >
+          <View style={styles.cardHeader}>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={[
+                  styles.levelKicker,
+                  { color: gradProgress.isGraduated ? colors.green : colors.purpleLight },
+                ]}
+              >
+                {gradProgress.isGraduated ? "INTERMEDIATE ACHIEVED 🎓" : "ROAD TO INTERMEDIATE 🚀"}
+              </Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Graduation Milestones
+              </Text>
+              <Text style={[styles.xpRatio, { color: colors.textMuted }]}>
+                {gradProgress.completedCount} / {gradProgress.totalCount} completed ({gradProgress.percent}%)
+              </Text>
+            </View>
+          </View>
+          <View
+            style={[
+              styles.xpBarTrack,
+              { backgroundColor: colors.surface2, marginTop: 4, marginBottom: 12 },
+            ]}
+          >
+            <View
+              style={[
+                styles.xpBarFill,
+                {
+                  width: `${gradProgress.percent}%`,
+                  backgroundColor: gradProgress.isGraduated ? colors.green : colors.purple,
+                },
+              ]}
+            />
+          </View>
+          <View style={{ gap: 8 }}>
+            {gradProgress.tasks.map((task) => (
+              <View
+                key={task.id}
+                style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "800",
+                    color: task.done ? colors.green : colors.textMuted,
+                  }}
+                >
+                  {task.done ? "✓" : "○"}
+                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: "700",
+                      color: task.done ? colors.text : colors.textMuted,
+                      textDecorationLine: task.done ? "line-through" : "none",
+                    }}
+                  >
+                    {task.title}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: colors.textMuted }}>
+                    {task.desc} ({task.current}/{task.target})
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Badges Showcase Card */}
+        {badges.length > 0 && (
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.cardHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.purpleLight }]}>Achievements</Text>
+              <Text style={[styles.badgeRatio, { color: colors.textMuted }]}>
+                {badges.filter((b) => b.unlocked).length} / {badges.length}
+              </Text>
+            </View>
+
+            <View style={styles.badgesGrid}>
+              {badges.map((b) => (
+                <TouchableOpacity
+                  key={b.id}
+                  style={[
+                    styles.badgeChip,
+                    {
+                      backgroundColor: b.unlocked ? colors.surface2 : "transparent",
+                      borderColor: b.unlocked ? colors.purple : colors.border,
+                      opacity: b.unlocked ? 1 : 0.45,
+                    },
+                  ]}
+                  onPress={() => setSelectedBadge(b)}
+                >
+                  <Text style={styles.badgeChipIcon}>{b.icon}</Text>
+                  <Text
+                    style={[
+                      styles.badgeChipName,
+                      { color: b.unlocked ? colors.text : colors.textMuted },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {b.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Details Card */}
-        <View style={[styles.details, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.purpleLight }]}>Account details</Text>
           <View style={styles.detailRow}>
             <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Display Name</Text>
@@ -150,6 +354,35 @@ export default function ProfileScreen({ user, onUserUpdate, onLogout, onBack, on
         </TouchableOpacity>
       </View>
 
+      {/* Badge Detail Modal */}
+      <Modal visible={!!selectedBadge} transparent animationType="fade" onRequestClose={() => setSelectedBadge(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            {selectedBadge && (
+              <>
+                <Text style={styles.modalBadgeIcon}>{selectedBadge.icon}</Text>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>{selectedBadge.name}</Text>
+                <Text style={[styles.modalBadgeStatus, { color: selectedBadge.unlocked ? colors.green : colors.textMuted }]}>
+                  {selectedBadge.unlocked ? "✓ Unlocked" : "🔒 Locked Achievement"}
+                </Text>
+                <Text style={[styles.modalSub, { color: colors.textMuted }]}>{selectedBadge.desc}</Text>
+                <View style={[styles.badgeRewardPill, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
+                  <Text style={[styles.badgeRewardText, { color: colors.purpleLight }]}>
+                    Reward: +{selectedBadge.xpReward} XP ⭐
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.saveBtn, { backgroundColor: colors.purple, marginTop: 14 }]}
+                  onPress={() => setSelectedBadge(null)}
+                >
+                  <Text style={styles.saveBtnText}>Close</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
       {/* Edit Profile Modal */}
       <Modal visible={editModalVisible} transparent animationType="fade" onRequestClose={() => setEditModalVisible(false)}>
         <View style={styles.modalOverlay}>
@@ -159,100 +392,107 @@ export default function ProfileScreen({ user, onUserUpdate, onLogout, onBack, on
               Choose a musical avatar and customize your display name.
             </Text>
 
+            {editError ? <Text style={styles.errorText}>{editError}</Text> : null}
+
             {/* Avatar Selector */}
-            <Text style={[styles.inputLabel, { color: colors.text }]}>Choose Avatar</Text>
+            <Text style={[styles.inputLabel, { color: colors.purpleLight }]}>CHOOSE AVATAR</Text>
             <View style={styles.avatarGrid}>
-              {AVATAR_OPTIONS.map((av) => {
-                const isSelected = selectedAvatar === av;
+              {AVATAR_OPTIONS.map((emoji) => {
+                const isSelected = selectedAvatar === emoji;
                 return (
                   <TouchableOpacity
-                    key={av}
+                    key={emoji}
                     style={[
                       styles.avatarOption,
                       {
-                        backgroundColor: isSelected ? colors.surface2 : "transparent",
-                        borderColor: isSelected ? colors.purple : colors.border,
-                        transform: [{ scale: isSelected ? 1.12 : 1 }],
+                        backgroundColor: isSelected ? colors.purple : colors.surface2,
+                        borderColor: isSelected ? colors.purpleLight : colors.border,
                       },
                     ]}
-                    onPress={() => setSelectedAvatar(av)}
+                    onPress={() => {
+                      setSelectedAvatar(emoji);
+                      updateProfileDraftSession({ selectedAvatar: emoji });
+                    }}
                   >
-                    <Text style={styles.avatarOptionText}>{av}</Text>
+                    <Text style={styles.avatarOptionText}>{emoji}</Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
 
             {/* Display Name Input */}
-            <Text style={[styles.inputLabel, { color: colors.text }]}>Display Name</Text>
+            <Text style={[styles.inputLabel, { color: colors.purpleLight }]}>DISPLAY NAME</Text>
             <TextInput
               style={[
-                styles.modalInput,
-                { backgroundColor: colors.surface2, borderColor: colors.border, color: colors.text },
+                styles.input,
+                {
+                  backgroundColor: colors.surface2,
+                  borderColor: colors.border,
+                  color: colors.text,
+                },
               ]}
               value={displayNameInput}
-              onChangeText={setDisplayNameInput}
-              placeholder="e.g. Master Producer"
+              onChangeText={(text) => {
+                setDisplayNameInput(text);
+                updateProfileDraftSession({ displayNameInput: text });
+              }}
+              placeholder="Your display name"
               placeholderTextColor={colors.textMuted}
-              maxLength={30}
+              maxLength={24}
+              autoCapitalize="words"
             />
 
-            {!!editError && (
-              <View style={[styles.errorBox, { backgroundColor: colors.redBg }]}>
-                <Text style={[styles.errorText, { color: colors.red }]}>{editError}</Text>
-              </View>
-            )}
-
-            {/* Modal Buttons */}
-            <TouchableOpacity
-              style={[styles.saveButton, { backgroundColor: colors.purple }]}
-              onPress={saveProfile}
-              disabled={saving}
-            >
-              {saving ? (
-                <ActivityIndicator color="#ffffff" size="small" />
-              ) : (
-                <Text style={styles.saveButtonText}>Save changes</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setEditModalVisible(false)}
-            >
-              <Text style={[styles.cancelButtonText, { color: colors.textMuted }]}>Cancel</Text>
-            </TouchableOpacity>
+            {/* Modal Actions */}
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.cancelBtn, { borderColor: colors.border }]}
+                onPress={closeEditModal}
+                disabled={saving}
+              >
+                <Text style={[styles.cancelBtnText, { color: colors.textMuted }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveBtn, { backgroundColor: colors.purple }]}
+                onPress={saveProfile}
+                disabled={saving}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#ffffff" size="small" />
+                ) : (
+                  <Text style={styles.saveBtnText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
 
-      <BottomNav active="profile" onNavigate={onNavigate} />
+      <BottomNav active="profile" onNavigate={handleNavigate} />
     </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
   back: { fontSize: 20, marginBottom: 4 },
-  body: { flex: 1, alignItems: "center", justifyContent: "center", paddingBottom: 24 },
-  heading: { fontSize: 22, fontWeight: "800", marginBottom: 16 },
+  body: { width: "100%", alignItems: "center", paddingBottom: 24 },
+  heading: { fontSize: 22, fontWeight: "800", marginBottom: 20 },
   avatarWrap: {
     position: "relative",
-    marginBottom: 10,
+    marginBottom: 14,
   },
   avatar: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    borderWidth: 1.5,
-    borderColor: "rgba(139, 124, 246, 0.4)",
+    width: 86,
+    height: 86,
+    borderRadius: 43,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1.5,
   },
-  avatarEmoji: { fontSize: 44 },
+  avatarEmoji: { fontSize: 38 },
   avatarEditBadge: {
     position: "absolute",
-    bottom: -2,
-    right: -2,
+    bottom: 2,
+    right: 2,
     width: 26,
     height: 26,
     borderRadius: 13,
@@ -261,116 +501,151 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#ffffff",
   },
-  avatarEditIcon: {
-    color: "#ffffff",
-    fontSize: 13,
-    fontWeight: "900",
-  },
-  displayName: { fontSize: 22, fontWeight: "800", marginBottom: 2 },
-  usernameHandle: { fontSize: 13, fontWeight: "700", marginBottom: 4 },
-  email: { fontSize: 13, marginBottom: 12 },
+  avatarEditIcon: { color: "#ffffff", fontSize: 13, fontWeight: "800" },
+  displayName: { fontSize: 20, fontWeight: "800", marginBottom: 2 },
+  usernameHandle: { fontSize: 13, fontWeight: "600", marginBottom: 4 },
+  email: { fontSize: 12, marginBottom: 12 },
   editButton: {
-    width: "100%",
-    minHeight: 44,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
     marginBottom: 16,
   },
-  editButtonText: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  details: {
+  editButtonText: { fontSize: 12, fontWeight: "700" },
+  card: {
     width: "100%",
     borderRadius: 16,
     borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingBottom: 4,
-    marginBottom: 16,
+    padding: 16,
+    marginBottom: 14,
+    gap: 8,
   },
-  sectionTitle: { fontSize: 13, fontWeight: "700", paddingTop: 14, paddingBottom: 8 },
-  detailRow: {
-    minHeight: 42,
+  cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    borderBottomWidth: 1,
-    borderColor: "rgba(128, 128, 128, 0.16)",
+  },
+  levelKicker: { fontSize: 11, fontWeight: "800", letterSpacing: 0.8 },
+  levelTitleText: { fontSize: 16, fontWeight: "800" },
+  xpRatio: { fontSize: 11, marginTop: 2 },
+  streakBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  streakEmoji: { fontSize: 15 },
+  streakCountText: { fontSize: 13, fontWeight: "800" },
+  xpBarTrack: { height: 6, borderRadius: 3, overflow: "hidden", marginTop: 4 },
+  xpBarFill: { height: "100%", borderRadius: 3 },
+  sectionTitle: { fontSize: 14, fontWeight: "800" },
+  badgeRatio: { fontSize: 12, fontWeight: "700" },
+  badgesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 4,
+  },
+  badgeChip: {
+    width: "48%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  badgeChipIcon: { fontSize: 18 },
+  badgeChipName: { fontSize: 11, fontWeight: "700", flex: 1 },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(128,128,128,0.2)",
   },
   lastDetailRow: { borderBottomWidth: 0 },
   detailLabel: { fontSize: 13 },
   detailValue: { fontSize: 13, fontWeight: "600" },
   button: {
     width: "100%",
-    minHeight: 46,
-    borderWidth: 1,
+    paddingVertical: 12,
     borderRadius: 12,
     alignItems: "center",
-    justifyContent: "center",
+    borderWidth: 1,
+    marginTop: 4,
   },
-  buttonText: { fontSize: 14, fontWeight: "700" },
-
-  // Edit Modal Styles
+  buttonText: { fontSize: 14, fontWeight: "600" },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.65)",
     justifyContent: "center",
-    padding: 20,
+    alignItems: "center",
+    padding: 24,
   },
   modalCard: {
+    width: "100%",
+    maxWidth: 380,
     borderRadius: 20,
     borderWidth: 1,
     padding: 22,
-    maxWidth: 440,
-    width: "100%",
-    alignSelf: "center",
+    alignItems: "center",
   },
-  modalTitle: { fontSize: 20, fontWeight: "800", marginBottom: 4, textAlign: "center" },
-  modalSub: { fontSize: 13, textAlign: "center", marginBottom: 18, lineHeight: 18 },
-  inputLabel: { fontSize: 12, fontWeight: "700", marginBottom: 8 },
+  modalTitle: { fontSize: 18, fontWeight: "800", marginBottom: 6 },
+  modalSub: { fontSize: 12, textAlign: "center", marginBottom: 14, lineHeight: 18 },
+  modalBadgeIcon: { fontSize: 48, marginBottom: 8 },
+  modalBadgeStatus: { fontSize: 13, fontWeight: "700", marginBottom: 6 },
+  badgeRewardPill: { paddingVertical: 4, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, marginTop: 4 },
+  badgeRewardText: { fontSize: 12, fontWeight: "800" },
+  inputLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 0.8, alignSelf: "flex-start", marginBottom: 8 },
   avatarGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+    marginBottom: 16,
     justifyContent: "center",
-    marginBottom: 18,
   },
   avatarOption: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 10,
     borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarOptionText: { fontSize: 24 },
-  modalInput: {
-    minHeight: 46,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    marginBottom: 16,
-    fontSize: 15,
-  },
-  errorBox: {
-    padding: 10,
+  avatarOptionText: { fontSize: 22 },
+  input: {
+    width: "100%",
+    height: 44,
     borderRadius: 10,
-    marginBottom: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    fontSize: 14,
+    marginBottom: 16,
   },
-  errorText: { fontSize: 12, fontWeight: "600", textAlign: "center" },
-  saveButton: {
-    minHeight: 48,
-    borderRadius: 12,
+  errorText: { color: "#ff4d4f", fontSize: 12, marginBottom: 8, textAlign: "center" },
+  modalActions: { flexDirection: "row", gap: 10, width: "100%" },
+  cancelBtn: {
+    flex: 1,
+    height: 42,
+    borderRadius: 10,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
-  saveButtonText: { color: "#ffffff", fontSize: 15, fontWeight: "700" },
-  cancelButton: {
-    paddingVertical: 12,
+  cancelBtnText: { fontSize: 13, fontWeight: "600" },
+  saveBtn: {
+    flex: 1,
+    height: 42,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
   },
-  cancelButtonText: { fontSize: 14, fontWeight: "600" },
+  saveBtnText: { color: "#ffffff", fontSize: 13, fontWeight: "700" },
 });

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import { Animated, Platform, StyleSheet, Text, View } from "react-native";
 import { useAppTheme } from "../theme";
 import ScreenWrapper from "../components/ScreenWrapper";
 import BottomNav from "../components/BottomNav";
@@ -15,6 +15,11 @@ import { KNOWN_CHORDS, sameNotes } from "../utils/musicTheory";
 import { useAudio } from "../audio/AudioContext";
 import { logChordActivity, ACTIVITY_TYPES } from "../db/historyDatabaseService";
 import { GuessChordIcon } from "../components/ChordIcons";
+import {
+  getGuessChordSession,
+  updateGuessChordSession,
+  resetGuessChordSession,
+} from "../services/sessionStore";
 
 // Easy keeps the original single-chord round; Medium and Hard run sequences.
 const DIFFICULTIES = [
@@ -43,13 +48,41 @@ function consecutiveFirstTry(results) {
 export default function GuessChordScreen({ onBack, onNavigate }) {
   const { colors } = useAppTheme();
   const { playChord } = useAudio();
-  const [difficulty, setDifficulty] = useState("easy");
-  const [roundIndex, setRoundIndex] = useState(0);
-  const [results, setResults] = useState([]); // { name, firstTry } per finished round
-  const [firstTry, setFirstTry] = useState(true);
-  const [target, setTarget] = useState(pickRandomChord);
-  const [selected, setSelected] = useState([]);
-  const [phase, setPhase] = useState("setup"); // "setup" | "guessing" | "correct" | "wrong" | "finished"
+  const savedSession = getGuessChordSession();
+  const [difficulty, setDifficulty] = useState(savedSession.difficulty);
+  const [roundIndex, setRoundIndex] = useState(savedSession.roundIndex);
+  const [results, setResults] = useState(savedSession.results); // { name, firstTry } per finished round
+  const [firstTry, setFirstTry] = useState(savedSession.firstTry);
+  const [target, setTarget] = useState(savedSession.target || pickRandomChord);
+  const [selected, setSelected] = useState(savedSession.selected);
+  const [phase, setPhase] = useState(savedSession.phase === "setup" ? "setup" : (savedSession.phase === "finished" ? "finished" : "guessing"));
+
+  const leave = (go) => {
+    updateGuessChordSession({
+      difficulty,
+      roundIndex,
+      results,
+      firstTry,
+      target,
+      selected,
+      phase,
+    });
+    go();
+  };
+
+  const handleBack = () => leave(onBack);
+  const handleNavigate = (key) => leave(() => onNavigate(key));
+
+  const [isAuditioning, setIsAuditioning] = useState(false);
+  const auditionTimerRef = useRef(null);
+  const submitLockRef = useRef(false);
+  const advanceLockRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      if (auditionTimerRef.current) clearTimeout(auditionTimerRef.current);
+    };
+  }, []);
 
   const activeDifficulty = DIFFICULTIES.find((d) => d.key === difficulty);
   const totalRounds = activeDifficulty.chords;
@@ -59,35 +92,60 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
   // keeps playing — chord samples duck it while they sound (playChord).
   const handleChooseDifficulty = (key) => {
     setDifficulty(key);
+    updateGuessChordSession({ difficulty: key });
   };
 
   const startRound = (index) => {
     setRoundIndex(index);
-    setTarget((prev) => pickRandomChord(prev.name));
+    const nextTarget = pickRandomChord(target?.name);
+    setTarget(nextTarget);
     setSelected([]);
     setFirstTry(true);
     setPhase("guessing");
+    updateGuessChordSession({
+      difficulty,
+      roundIndex: index,
+      target: nextTarget,
+      selected: [],
+      firstTry: true,
+      phase: "guessing",
+    });
   };
 
   const handleStart = () => {
     setResults([]);
+    updateGuessChordSession({ results: [] });
     startRound(0);
   };
 
   const toggleNote = (note) => {
     if (phase !== "guessing") return;
-    setSelected((prev) =>
-      prev.includes(note) ? prev.filter((n) => n !== note) : [...prev, note]
-    );
+    setSelected((prev) => {
+      const next = prev.includes(note) ? prev.filter((n) => n !== note) : [...prev, note];
+      updateGuessChordSession({ selected: next });
+      return next;
+    });
   };
 
-  const handleHear = useCallback(() => playChord(target.notes), [playChord, target]);
+  const handleHear = useCallback(() => {
+    if (isAuditioning) return;
+    setIsAuditioning(true);
+    playChord(target.notes);
+    if (auditionTimerRef.current) clearTimeout(auditionTimerRef.current);
+    auditionTimerRef.current = setTimeout(() => {
+      setIsAuditioning(false);
+      auditionTimerRef.current = null;
+    }, 750);
+  }, [playChord, target, isAuditioning]);
 
   const handleSubmit = () => {
-    if (selected.length === 0) return;
+    if (selected.length === 0 || submitLockRef.current) return;
+    submitLockRef.current = true;
+    setTimeout(() => { submitLockRef.current = false; }, 400);
     const isCorrect = sameNotes(selected, target.notes);
     if (!isCorrect) setFirstTry(false);
     setPhase(isCorrect ? "correct" : "wrong");
+    updateGuessChordSession({ firstTry: isCorrect ? firstTry : false, phase: isCorrect ? "correct" : "wrong" });
     // History: every submitted guess is recorded, correct or not.
     logChordActivity(
       ACTIVITY_TYPES.GUESS,
@@ -98,23 +156,30 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
   };
 
   const handleAdvance = () => {
-    setResults((prev) => [...prev, { name: target.name, firstTry }]);
+    if (advanceLockRef.current) return;
+    advanceLockRef.current = true;
+    setTimeout(() => { advanceLockRef.current = false; }, 400);
+    const nextResults = [...results, { name: target.name, firstTry }];
+    setResults(nextResults);
+    updateGuessChordSession({ results: nextResults });
     if (roundIndex + 1 < totalRounds) {
       startRound(roundIndex + 1);
     } else {
       setPhase("finished");
+      updateGuessChordSession({ phase: "finished" });
     }
   };
 
   const handleTryAgain = () => {
     setSelected([]);
     setPhase("guessing");
+    updateGuessChordSession({ selected: [], phase: "guessing" });
   };
 
   if (phase === "setup") {
     return (
       <ScreenWrapper scroll>
-        <TouchButton style={styles.backBtnHit} onPress={onBack} accessibilityLabel="Back to home">
+        <TouchButton style={styles.backBtnHit} onPress={handleBack} accessibilityLabel="Back to home">
           <Text style={[styles.backBtn, { color: colors.purpleLight }]}>←</Text>
         </TouchButton>
         <View style={styles.iconHero}>
@@ -134,11 +199,7 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
                   styles.diffChip,
                   {
                     backgroundColor: difficulty === d.key ? colors.purple : colors.glass,
-                    borderColor: difficulty === d.key ? colors.purple : colors.glassBorder,
-                    shadowColor: colors.purple,
-                    shadowOpacity: difficulty === d.key ? 0.7 : 0,
-                    shadowRadius: 14,
-                    shadowOffset: { width: 0, height: 0 },
+                    borderColor: difficulty === d.key ? colors.purple : colors.glassBorder,...Platform.select({ ios: { shadowColor: colors.purple, shadowOpacity: difficulty === d.key ? 0.7 : 0, shadowRadius: 14, shadowOffset: { width: 0, height: 0 } }, android: { elevation: 0 } }),
                   },
                 ]}
                 pulseKey={difficulty === d.key ? d.key : undefined}
@@ -177,7 +238,7 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
           </TouchButton>
         </FadeSlide>
 
-        <BottomNav active="home" onNavigate={onNavigate} />
+        <BottomNav active="home" onNavigate={handleNavigate} />
       </ScreenWrapper>
     );
   }
@@ -185,7 +246,7 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
   if (phase === "guessing") {
     return (
       <ScreenWrapper scroll>
-        <TouchButton style={styles.backBtnHit} onPress={onBack} accessibilityLabel="Back to home">
+        <TouchButton style={styles.backBtnHit} onPress={handleBack} accessibilityLabel="Back to home">
           <Text style={[styles.backBtn, { color: colors.purpleLight }]}>←</Text>
         </TouchButton>
         <Text style={[styles.title, { color: colors.purpleLight }]}>MusiXs</Text>
@@ -249,11 +310,7 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
               styles.enterButton,
               {
                 backgroundColor: colors.purple,
-                opacity: selected.length ? 1 : 0.5,
-                shadowColor: colors.purple,
-                shadowOpacity: selected.length ? 0.7 : 0,
-                shadowRadius: 14,
-                shadowOffset: { width: 0, height: 0 },
+                opacity: selected.length ? 1 : 0.5,...Platform.select({ ios: { shadowColor: colors.purple, shadowOpacity: selected.length ? 0.7 : 0, shadowRadius: 14, shadowOffset: { width: 0, height: 0 } }, android: { elevation: 0 } }),
               },
             ]}
             disabled={selected.length === 0}
@@ -264,7 +321,7 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
           </TouchButton>
         </FadeSlide>
 
-        <BottomNav active="home" onNavigate={onNavigate} />
+        <BottomNav active="home" onNavigate={handleNavigate} />
       </ScreenWrapper>
     );
   }
@@ -342,11 +399,7 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
                 styles.actionButton,
                 {
                   flex: 1,
-                  backgroundColor: colors.purple,
-                  shadowColor: colors.purple,
-                  shadowOpacity: 0.7,
-                  shadowRadius: 14,
-                  shadowOffset: { width: 0, height: 0 },
+                  backgroundColor: colors.purple,...Platform.select({ ios: { shadowColor: colors.purple, shadowOpacity: 0.7, shadowRadius: 14, shadowOffset: { width: 0, height: 0 } }, android: { elevation: 0 } }),
                 },
               ]}
               onPress={isCorrect ? handleAdvance : handleTryAgain}
@@ -358,7 +411,7 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
           </View>
         </FadeSlide>
 
-        <BottomNav active="home" onNavigate={onNavigate} />
+        <BottomNav active="home" onNavigate={handleNavigate} />
       </ScreenWrapper>
     );
   }
@@ -366,6 +419,9 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
   // phase === "finished"
   return (
     <ScreenWrapper scroll>
+      <TouchButton style={styles.backBtnHit} onPress={handleBack} accessibilityLabel="Back to home">
+        <Text style={[styles.backBtn, { color: colors.purpleLight }]}>←</Text>
+      </TouchButton>
       <Text style={[styles.title, { color: colors.purpleLight }]}>MusiXs</Text>
       <Text style={[styles.subtitle, { color: colors.textMuted }]}>Session Complete</Text>
 
@@ -377,11 +433,7 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
               {
                 backgroundColor: colors.glass,
                 borderColor: colors.glassBorder,
-                borderWidth: 1,
-                shadowColor: colors.purple,
-                shadowOpacity: 0.5,
-                shadowRadius: 20,
-                shadowOffset: { width: 0, height: 0 },
+                borderWidth: 1,...Platform.select({ ios: { shadowColor: colors.purple, shadowOpacity: 0.5, shadowRadius: 20, shadowOffset: { width: 0, height: 0 } }, android: { elevation: 0 } }),
               },
             ]}
           >
@@ -419,14 +471,14 @@ export default function GuessChordScreen({ onBack, onNavigate }) {
           </TouchButton>
           <TouchButton
             style={[styles.actionButton, { flex: 1, backgroundColor: colors.purple }]}
-            onPress={() => setPhase("setup")}
+            onPress={() => { setPhase("setup"); resetGuessChordSession(); }}
           >
             <Text style={styles.primaryActionText}>Change Difficulty</Text>
           </TouchButton>
         </View>
       </FadeSlide>
 
-      <BottomNav active="home" onNavigate={onNavigate} />
+      <BottomNav active="home" onNavigate={handleNavigate} />
     </ScreenWrapper>
   );
 }

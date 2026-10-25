@@ -10,24 +10,37 @@ import { useAudio } from "../audio/AudioContext";
 
 export default function SettingsScreen({ onBack, onNavigate }) {
   const { colors, mode, toggleMode } = useAppTheme();
-  const { getMusicVolume, setMusicVolume } = useAudio();
+  const { getMusicVolume, setMusicVolume, getNoteVolume, setNoteVolume, playChord } = useAudio();
   const [volume, setVolume] = useState(getMusicVolume);
+  const [noteVolume, setNoteVolumeState] = useState(getNoteVolume);
 
   const handleVolume = (value) => {
     setVolume(value);
     setMusicVolume(value);
   };
 
+  const handleNoteVolume = (value) => {
+    setNoteVolumeState(value);
+    setNoteVolume(value);
+  };
+
+  const handleNoteSlidingComplete = (value) => {
+    setNoteVolumeState(value);
+    setNoteVolume(value);
+    // Preview the chord sound with the selected volume
+    playChord(["C", "E", "G"]);
+  };
+
   const isLight = mode === "light";
 
   return (
-    <ScreenWrapper>
+    <ScreenWrapper scroll>
       <TouchButton style={styles.backHit} onPress={onBack} accessibilityLabel="Back to home">
         <Text style={[styles.backBtn, { color: colors.purpleLight }]}>←</Text>
       </TouchButton>
       <Text style={[styles.title, { color: colors.purpleLight }]}>Settings</Text>
 
-      {/* Audio Settings */}
+      {/* Audio Settings: Menu Music */}
       <FadeSlide delay={80}>
         <View style={[styles.row, { backgroundColor: colors.glass, borderColor: colors.glassBorder }]}>
           <View style={styles.labelRow}>
@@ -52,8 +65,34 @@ export default function SettingsScreen({ onBack, onNavigate }) {
         </View>
       </FadeSlide>
 
+      {/* Audio Settings: Notes & Chords */}
+      <FadeSlide delay={120}>
+        <View style={[styles.row, { backgroundColor: colors.glass, borderColor: colors.glassBorder }]}>
+          <View style={styles.labelRow}>
+            <Text style={[styles.label, styles.labelInline, { color: colors.text }]}>
+              Notes Audio · Chord Synth
+            </Text>
+            <Text style={[styles.percent, { color: colors.purpleLight }]}>
+              {Math.round(noteVolume * 100)}%
+            </Text>
+          </View>
+          <Slider
+            style={styles.slider}
+            minimumValue={0}
+            maximumValue={1}
+            value={noteVolume}
+            onValueChange={handleNoteVolume}
+            onSlidingComplete={handleNoteSlidingComplete}
+            minimumTrackTintColor={colors.purple}
+            maximumTrackTintColor={colors.border}
+            thumbTintColor={colors.purple}
+            accessibilityLabel="Notes audio volume"
+          />
+        </View>
+      </FadeSlide>
+
       {/* Appearance / Light Mode Setting */}
-      <FadeSlide delay={160}>
+      <FadeSlide delay={170}>
         <View style={[styles.row, { backgroundColor: colors.glass, borderColor: colors.glassBorder }]}>
           <View style={styles.appearanceHeader}>
             <View style={styles.appearanceInfo}>
