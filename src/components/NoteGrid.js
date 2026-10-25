@@ -33,6 +33,7 @@ export default function NoteGrid({
   };
 
   const handlePickerSelect = (noteWithAccidental) => {
+    // Don't close - let the user keep selecting
     onToggle(noteWithAccidental);
   };
 

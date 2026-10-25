@@ -1,9 +1,10 @@
 import React from "react";
-import { Platform, ScrollView, View, StyleSheet } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { Platform, ScrollView, View, StyleSheet, SafeAreaView } from "react-native";
 import { useAppTheme } from "../theme";
 import BottomNav from "./BottomNav";
 import { DynamicBackground } from "./DynamicBackground";
+
+const useSafeAreaInsets = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
 
 function isBottomNavElement(item) {
   if (!item || typeof item !== "object") return false;

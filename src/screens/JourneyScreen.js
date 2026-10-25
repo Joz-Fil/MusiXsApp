@@ -181,6 +181,13 @@ export default function JourneyScreen({ onBack, onNavigate }) {
     }
   };
 
+  const handlePrevLevel = () => {
+    const currentIndex = JOURNEY_LEVELS.findIndex((l) => l.id === activeLevel?.id);
+    if (currentIndex > 0) {
+      handleStartLevel(JOURNEY_LEVELS[currentIndex - 1]);
+    }
+  };
+
   // Group levels by Chapter
   const chapters = [1, 2, 3].map((ch) => ({
     chapter: ch,
@@ -192,9 +199,19 @@ export default function JourneyScreen({ onBack, onNavigate }) {
   if (activeLevel) {
     return (
       <ScreenWrapper scroll>
-        <TouchButton style={styles.backHit} onPress={handleBackToMap}>
-          <Text style={[styles.backBtn, { color: colors.purpleLight }]}>← Map</Text>
-        </TouchButton>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          <TouchButton style={styles.backHit} onPress={handleBackToMap}>
+            <Text style={[styles.backBtn, { color: colors.purpleLight }]}>← Map</Text>
+          </TouchButton>
+          {JOURNEY_LEVELS.findIndex((l) => l.id === activeLevel?.id) > 0 && (
+            <TouchButton
+              style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border }}
+              onPress={handlePrevLevel}
+            >
+              <Text style={{ fontSize: 12, fontWeight: "700", color: colors.purpleLight }}>← Previous Level</Text>
+            </TouchButton>
+          )}
+        </View>
 
         <View style={styles.challengeHeader}>
           <Text style={[styles.levelKicker, { color: colors.purpleLight }]}>

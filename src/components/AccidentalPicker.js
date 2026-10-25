@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Animated, Modal, StyleSheet, Text, View, TouchableWithoutFeedback } from "react-native";
+import { Animated, Modal, StyleSheet, Text, View, TouchableOpacity, TouchableWithoutFeedback } from "react-native";
 import TouchButton from "./TouchButton";
 import { USE_NATIVE_DRIVER } from "./anim";
 
@@ -39,48 +39,51 @@ export default function AccidentalPicker({ visible, note, colors, onSelect, onCl
 
   return (
     <Modal transparent visible={visible} animationType="none" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
-          <Animated.View
-            style={[
-              styles.picker,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-                opacity: fadeAnim,
-                transform: [{ scale: scaleAnim }],
-              },
-            ]}
-          >
-            <Text style={[styles.pickerTitle, { color: colors.textMuted }]}>
-              Select Accidental
-            </Text>
-            <View style={styles.variantsRow}>
-              {variants.map((variant) => (
-                <TouchButton
-                  key={variant.value}
-                  style={[
-                    styles.variantButton,
-                    { backgroundColor: colors.surface2, borderColor: colors.border },
-                  ]}
-                  pressScale={0.92}
-                  onPress={() => {
-                    onSelect(variant.value);
-                    onClose();
-                  }}
-                >
-                  <Text style={[styles.variantLabel, { color: colors.text }]}>
-                    {variant.label}
-                  </Text>
-                  <Text style={[styles.variantDesc, { color: colors.textMuted }]}>
-                    {variant.description}
-                  </Text>
-                </TouchButton>
-              ))}
-            </View>
-          </Animated.View>
-        </View>
-      </TouchableWithoutFeedback>
+      <TouchableOpacity
+        style={styles.overlay}
+        activeOpacity={1}
+        onPress={onClose}
+        accessibilityLabel="Close accent selector"
+      >
+        <Animated.View
+          style={[
+            styles.picker,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              opacity: fadeAnim,
+              transform: [{ scale: scaleAnim }],
+            },
+          ]}
+        >
+          <Text style={[styles.pickerTitle, { color: colors.textMuted }]}>
+            Select Accidental
+          </Text>
+          <View style={styles.variantsRow}>
+            {variants.map((variant) => (
+              <TouchButton
+                key={variant.value}
+                style={[
+                  styles.variantButton,
+                  { backgroundColor: colors.surface2, borderColor: colors.border },
+                ]}
+                pressScale={0.92}
+                onPress={() => {
+                  onSelect(variant.value);
+                  onClose();
+                }}
+              >
+                <Text style={[styles.variantLabel, { color: colors.text }]}>
+                  {variant.label}
+                </Text>
+                <Text style={[styles.variantDesc, { color: colors.textMuted }]}>
+                  {variant.description}
+                </Text>
+              </TouchButton>
+            ))}
+          </View>
+        </Animated.View>
+      </TouchableOpacity>
     </Modal>
   );
 }

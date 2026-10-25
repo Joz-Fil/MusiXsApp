@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View, TouchableWithoutFeedback } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 import { ThemeProvider, useAppTheme } from "./src/theme";
 import ScreenWrapper from "./src/components/ScreenWrapper";
 import AnimatedSwitch from "./src/components/AnimatedSwitch";
@@ -179,14 +178,18 @@ function AppContent() {
 }
 
 export default function App() {
+  // On web, wrap content in TouchableWithoutFeedback to handle spacing
+  // On native, SafeAreaProvider is automatically provided by Expo
   return (
-    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-      <ThemeProvider>
-        <AudioProvider>
-          <AppContent />
-        </AudioProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <TouchableWithoutFeedback>
+      <View style={{ flex: 1 }}>
+        <ThemeProvider>
+          <AudioProvider>
+            <AppContent />
+          </AudioProvider>
+        </ThemeProvider>
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
 

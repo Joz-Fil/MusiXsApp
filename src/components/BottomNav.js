@@ -1,8 +1,9 @@
 import React from "react";
 import { Platform, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../theme";
 import TouchButton from "./TouchButton";
+
+const useSafeAreaInsets = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
 
 function HomeIcon({ color, size = 20 }) {
   const roofW = Math.round(size * 0.85);

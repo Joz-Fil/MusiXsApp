@@ -89,15 +89,21 @@ export default function LoginModal({ visible, onClose, onSubmit }) {
   const handleSendResetCode = async () => {
     const cleanEmail = resetEmail.trim().toLowerCase();
     if (!cleanEmail || !isValidEmail(cleanEmail)) {
-      setError("Please enter a valid Gmail / email address.");
+      setError("Please enter a valid Gmail / email address (e.g. you@gmail.com).");
       return;
     }
 
     setError("");
+    setSuccessMsg("");
     setSubmitting(true);
     try {
-      await sendPasswordResetCode(cleanEmail);
-      setInfoNotice(`📧 Verification code sent to ${cleanEmail}. Please check your Gmail inbox.`);
+      const result = await sendPasswordResetCode(cleanEmail);
+      if (result.code) {
+        setInfoNotice(`📧 [DEV SIMULATION] Your 6-digit pin code is: ${result.code}`);
+      } else {
+        setInfoNotice(`📧 Verification code sent to ${cleanEmail}. Please check your Gmail inbox.`);
+      }
+      setSuccessMsg(result.message);
       setViewMode("forgot_code");
     } catch (err) {
       setError(err.message || "Failed to send reset code.");
