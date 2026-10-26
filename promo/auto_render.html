@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MusiXs After Effects Style Promo Renderer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0d0b12;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 1280px;
+      height: 720px;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    canvas {
+      width: 1280px;
+      height: 720px;
+      display: block;
+    }
+    #status {
+      position: absolute;
+      top: 12px;
+      left: 16px;
+      color: #a78bfa;
+      font-family: monospace;
+      font-size: 13px;
+      z-index: 100;
+      background: rgba(0,0,0,0.6);
+      padding: 4px 10px;
+      border-radius: 6px;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="status">Initializing After Effects Studio Engine...</div>
+  <canvas id="c" width="1280" height="720"></canvas>
+
+  <script>
+    const canvas = document.getElementById("c");
+    const ctx = canvas.getContext("2d");
+    const statusEl = document.getElementById("status");
+
+    const TOTAL_DURATION = 45.0; // Exact 45 seconds
+    let currentTime = 0;
+    let isRecording = false;
+
+    // Load official MusiXs Triad Logo from base64
+    const logoImg = new Image();
+    fetch('icon_base64.txt')
+      .then(res => res.text())
+      .then(b64 => {
+        logoImg.src = 'data:image/png;base64,' + b64.trim();
+      })
+      .catch(() => {});
+
+    // 6 SCENES ARCHITECTURE (45s Total)
+    const SCENES = [
+      { id: 1, start: 0, end: 7.5, title: "The Hook & Core Metrics" },
+      { id: 2, start: 7.5, end: 15.0, title: "The Maestro's Journey" },
+      { id: 3, start: 15.0, end: 22.5, title: "Learn a Chord Explorer" },
+      { id: 4, start: 22.5, end: 30.0, title: "Build a Chord from Scratch" },
+      { id: 5, start: 30.0, end: 37.5, title: "Sound Dojo Ear Workouts" },
+      { id: 6, start: 37.5, end: 45.0, title: "Profile, Achievements & Outro CTA" }
+    ];
+
+    // ==========================================
+    // AUDIO SYNTHESIS ENGINE (98 BPM Lo-Fi Beat)
+    // ==========================================
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioContext();
+    const masterGain = audioCtx.createGain();
+    masterGain.gain.setValueAtTime(0.75, audioCtx.currentTime);
+
+    const drumGain = audioCtx.createGain();
+    drumGain.gain.setValueAtTime(0.65, audioCtx.currentTime);
+    drumGain.connect(masterGain);
+
+    const chordGain = audioCtx.createGain();
+    chordGain.gain.setValueAtTime(0.48, audioCtx.currentTime);
+    chordGain.connect(masterGain);
+
+    const sfxGain = audioCtx.createGain();
+    sfxGain.gain.setValueAtTime(0.75, audioCtx.currentTime);
+    sfxGain.connect(masterGain);
+
+    const mediaDest = audioCtx.createMediaStreamDestination();
+    masterGain.connect(mediaDest);
+    masterGain.connect(audioCtx.destination);
+
+    function playKick(t) {
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.setValueAtTime(145, t);
+        osc.frequency.exponentialRampToValueAtTime(36, t + 0.12);
+        gain.gain.setValueAtTime(1.0, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+        osc.connect(gain);
+        gain.connect(drumGain);
+        osc.start(t);
+        osc.stop(t + 0.15);
+      } catch(e) {}
+    }
+
+    function playSnare(t) {
+      try {
+        const bufferSize = audioCtx.sampleRate * 0.14;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = "bandpass";
+        filter.frequency.setValueAtTime(1300, t);
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.75, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.14);
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(drumGain);
+        noise.start(t);
+        noise.stop(t + 0.15);
+      } catch(e) {}
+    }
+
+    function playHihat(t) {
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "highpass";
+        osc.frequency.setValueAtTime(8500, t);
+        gain.gain.setValueAtTime(0.18, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+        osc.connect(gain);
+        gain.connect(drumGain);
+        osc.start(t);
+        osc.stop(t + 0.05);
+      } catch(e) {}
+    }
+
+    function playSynthChord(freqs, t, duration = 1.3) {
+      try {
+        freqs.forEach(freq => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(freq, t);
+          gain.gain.setValueAtTime(0.14, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+          osc.connect(gain);
+          gain.connect(chordGain);
+          osc.start(t);
+          osc.stop(t + duration);
+        });
+      } catch(e) {}
+    }
+
+    function playSfxChime(t) {
+      try {
+        [523.25, 659.25, 783.99, 1046.5].forEach((freq, idx) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "sine";
+          const startT = t + idx * 0.06;
+          osc.frequency.setValueAtTime(freq, startT);
+          gain.gain.setValueAtTime(0, startT);
+          gain.gain.linearRampToValueAtTime(0.28, startT + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, startT + 0.6);
+          osc.connect(gain);
+          gain.connect(sfxGain);
+          osc.start(startT);
+          osc.stop(startT + 0.65);
+        });
+      } catch(e) {}
+    }
+
+    let lastBeatIndex = -1;
+    function processAudio(time) {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const beatDur = 60 / 98; // ~0.612s
+      const currentBeat = Math.floor(time / beatDur);
+
+      if (currentBeat !== lastBeatIndex && time > 0.4) {
+        lastBeatIndex = currentBeat;
+        const now = audioCtx.currentTime;
+        const beatInBar = currentBeat % 4;
+
+        if (beatInBar === 0) {
+          playKick(now);
+          const chordIndex = Math.floor(currentBeat / 4) % 4;
+          const progressions = [
+            [261.63, 329.63, 392.00, 493.88], // Cmaj7
+            [220.00, 261.63, 329.63, 392.00], // Am7
+            [293.66, 349.23, 440.00, 523.25], // Dm7
+            [196.00, 246.94, 293.66, 349.23]  // G7
+          ];
+          playSynthChord(progressions[chordIndex], now, beatDur * 3.4);
+        } else if (beatInBar === 2) {
+          playSnare(now);
+        } else {
+          playHihat(now);
+        }
+
+        if (beatInBar === 1 || beatInBar === 3) {
+          playHihat(now);
+        }
+      }
+    }
+
+    // ==========================================
+    // PARTICLES & CINEMATIC BACKGROUND
+    // ==========================================
+    const PARTICLES = Array.from({ length: 36 }, (_, i) => ({
+      glyph: ["✦", "♪", "✧", "♫", "•", "♬", "✨", "▲"][i % 8],
+      x: Math.random(),
+      y: Math.random(),
+      size: 11 + Math.random() * 18,
+      speed: 0.18 + Math.random() * 0.35,
+      phase: Math.random() * Math.PI * 2
+    }));
+
+    function drawCinematicBackground(w, h, t, tintColor = "#2b1e42") {
+      ctx.save();
+      const grad = ctx.createRadialGradient(w * 0.5, h * 0.45, 100, w * 0.5, h * 0.5, w * 0.85);
+      grad.addColorStop(0, tintColor);
+      grad.addColorStop(0.65, "#14101e");
+      grad.addColorStop(1, "#0a0810");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+
+      // Ambient floating particles
+      PARTICLES.forEach(p => {
+        const floatY = (p.y - (t * p.speed * 0.04)) % 1;
+        const actualY = (floatY < 0 ? floatY + 1 : floatY) * h;
+        const actualX = (p.x + Math.sin(t * 0.7 + p.phase) * 0.04) * w;
+        const alpha = 0.15 + 0.3 * Math.sin(t * 1.5 + p.phase);
+        ctx.fillStyle = `rgba(180, 156, 238, ${Math.max(0, alpha)})`;
+        ctx.font = `${p.size}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.fillText(p.glyph, actualX, actualY);
+      });
+      ctx.restore();
+    }
+
+    // Floating Glassmorphic Metric / Feature Card
+    function drawGlassCard(x, y, w, h, icon, number, label, sublabel, opacity = 1.0, scale = 1.0) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+      ctx.globalAlpha = Math.max(0, Math.min(1, opacity));
+
+      // Drop shadow
+      ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
+      ctx.shadowBlur = 24;
+      ctx.shadowOffsetY = 10;
+
+      // Card Background (Glass)
+      ctx.fillStyle = "rgba(42, 38, 56, 0.85)";
+      ctx.beginPath();
+      ctx.roundRect(-w / 2, -h / 2, w, h, 16);
+      ctx.fill();
+
+      // Border shine
+      ctx.shadowColor = "transparent";
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Number / Stat
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#8b7cf6";
+      ctx.font = "900 34px sans-serif";
+      ctx.fillText(number, -w / 2 + 20, -h / 2 + 42);
+
+      // Label
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 15px sans-serif";
+      ctx.fillText(label, -w / 2 + 20, -h / 2 + 70);
+
+      // Sublabel
+      if (sublabel) {
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "12px sans-serif";
+        ctx.fillText(sublabel, -w / 2 + 20, -h / 2 + 90);
+      }
+
+      ctx.restore();
+    }
+
+    // After Effects 3D Phone Mockup with Isometric Bevel & Depth
+    function draw3DPhone(cx, cy, phoneW, phoneH, tiltAngle, screenDrawer) {
+      ctx.save();
+      const floatY = Math.sin(currentTime * 2) * 5;
+      ctx.translate(cx, cy + floatY);
+
+      if (tiltAngle !== 0) {
+        ctx.transform(1, tiltAngle * 0.1, 0, 1, 0, 0);
+      }
+
+      const cornerR = 36;
+
+      ctx.shadowColor = "rgba(139, 124, 246, 0.4)";
+      ctx.shadowBlur = 45;
+      ctx.shadowOffsetY = 18;
+
+      ctx.fillStyle = "#16131f";
+      ctx.beginPath();
+      ctx.roundRect(-phoneW / 2 + 4, -phoneH / 2 + 8, phoneW, phoneH, cornerR);
+      ctx.fill();
+
+      ctx.shadowColor = "transparent";
+      ctx.fillStyle = "#221d30";
+      ctx.beginPath();
+      ctx.roundRect(-phoneW / 2, -phoneH / 2, phoneW, phoneH, cornerR);
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.28)";
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      const bezel = 9;
+      const sw = phoneW - bezel * 2;
+      const sh = phoneH - bezel * 2;
+      const sx = -sw / 2;
+      const sy = -sh / 2;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(sx, sy, sw, sh, cornerR - 6);
+      ctx.clip();
+
+      ctx.fillStyle = "#322f3d";
+      ctx.fillRect(sx, sy, sw, sh);
+
+      screenDrawer(sx, sy, sw, sh);
+
+      const glare = ctx.createLinearGradient(sx, sy, sx + sw, sy + sh * 0.55);
+      glare.addColorStop(0, "rgba(255, 255, 255, 0.14)");
+      glare.addColorStop(0.35, "rgba(255, 255, 255, 0.02)");
+      glare.addColorStop(1, "transparent");
+      ctx.fillStyle = glare;
+      ctx.fillRect(sx, sy, sw, sh);
+      ctx.restore();
+
+      ctx.fillStyle = "#0c0a10";
+      ctx.beginPath();
+      ctx.roundRect(-36, -phoneH / 2 + 9, 72, 16, 8);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawTouchPointer(x, y, radius, t) {
+      ctx.save();
+      const pulse = (Math.sin(t * 8) + 1) * 0.5;
+      ctx.strokeStyle = `rgba(139, 124, 246, ${0.8 - pulse * 0.4})`;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(x, y, radius + pulse * 14, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+      ctx.beginPath();
+      ctx.arc(x, y, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // ==========================================
+    // 6 SCENES IMPLEMENTATION
+    // ==========================================
+
+    // SCENE 1: THE HOOK & CORE METRICS (0:00 - 7.5s)
+    function renderScene1(w, h, t, progress) {
+      drawCinematicBackground(w, h, t, "#2d1c47");
+
+      ctx.save();
+      ctx.textAlign = "left";
+
+      const logoSize = 68;
+      if (logoImg.complete && logoImg.naturalWidth > 0) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(120, 120, logoSize, logoSize, 18);
+        ctx.clip();
+        ctx.drawImage(logoImg, 120, 120, logoSize, logoSize);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = "#8b7cf6";
+        ctx.beginPath();
+        ctx.roundRect(120, 120, logoSize, logoSize, 18);
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 34px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("♫", 120 + logoSize / 2, 120 + 48);
+        ctx.textAlign = "left";
+      }
+
+      ctx.font = "900 56px sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.shadowColor = "#8b7cf6";
+      ctx.shadowBlur = 24;
+      ctx.fillText("MusiXs", 205, 172);
+      ctx.shadowBlur = 0;
+
+      ctx.font = "bold 18px sans-serif";
+      ctx.fillStyle = "#c4b5fd";
+      ctx.fillText("A mobile music studio for learning, building and guessing chords", 120, 225);
+
+      ctx.font = "900 36px sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText("Stop reading about chords.", 120, 290);
+      ctx.fillStyle = "#8b7cf6";
+      ctx.fillText("Start playing them.", 120, 335);
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
+      ctx.beginPath();
+      ctx.roundRect(120, 375, 460, 36, 18);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#cbd5e1";
+      ctx.font = "bold 13px sans-serif";
+      ctx.fillText("React Native  |  Expo SDK 57  |  SQLite  |  Supabase", 136, 398);
+
+      const cardAnim1 = Math.min(1, Math.max(0, (progress - 0.1) * 3));
+      const cardAnim2 = Math.min(1, Math.max(0, (progress - 0.2) * 3));
+      const cardAnim3 = Math.min(1, Math.max(0, (progress - 0.3) * 3));
+      const cardAnim4 = Math.min(1, Math.max(0, (progress - 0.4) * 3));
+
+      drawGlassCard(770, 220, 220, 115, "🗺️", "11", "Journey levels", "in 3 chapters", cardAnim1, 0.8 + cardAnim1 * 0.2);
+      drawGlassCard(1030, 220, 220, 115, "🎹", "40+", "Chords", "in the library", cardAnim2, 0.8 + cardAnim2 * 0.2);
+      drawGlassCard(770, 365, 220, 115, "⚡", "5", "Ways to practise", "guided & free-form", cardAnim3, 0.8 + cardAnim3 * 0.2);
+      drawGlassCard(1030, 365, 220, 115, "🎯", "3", "Difficulty tiers", "in the quiz", cardAnim4, 0.8 + cardAnim4 * 0.2);
+
+      ctx.fillStyle = "#a78bfa";
+      ctx.font = "italic 16px sans-serif";
+      ctx.fillText("“Learn music theory by touch, not textbook.”", 120, 450);
+
+      ctx.restore();
+    }
+
+    // SCENE 2: THE MAESTRO'S JOURNEY (7.5s - 15.0s)
+    function renderScene2(w, h, t, progress) {
+      drawCinematicBackground(w, h, t, "#22193d");
+
+      ctx.save();
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#a78bfa";
+      ctx.font = "bold 16px sans-serif";
+      ctx.fillText("FEATURE 01 · STRUCTURED ROAD", 120, 170);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "900 48px sans-serif";
+      ctx.fillText("The Maestro's Journey", 120, 230);
+
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "19px sans-serif";
+      ctx.fillText("11 guided levels across 3 progressive chapters:", 120, 275);
+
+      const chapters = [
+        "1. The Building Blocks (Roots, 5ths, Triads)",
+        "2. The Core Triads (Major, Minor, Dominant)",
+        "3. Colorful Harmonies (Sus4, Sus2, 7ths)"
+      ];
+      chapters.forEach((c, idx) => {
+        ctx.fillStyle = "rgba(139, 124, 246, 0.15)";
+        ctx.beginPath();
+        ctx.roundRect(120, 315 + idx * 46, 440, 36, 8);
+        ctx.fill();
+
+        ctx.fillStyle = "#f1f5f9";
+        ctx.font = "bold 15px sans-serif";
+        ctx.fillText(c, 138, 339 + idx * 46);
+      });
+
+      ctx.fillStyle = "#fbbf24";
+      ctx.font = "bold 22px sans-serif";
+      ctx.fillText("★ 30 / 30 Stars Collected", 120, 480);
+      ctx.fillStyle = "#22c55e";
+      ctx.font = "bold 16px sans-serif";
+      ctx.fillText("⚡ Concept → Challenge → Submit Answer", 120, 510);
+      ctx.restore();
+
+      const tilt = Math.sin(t * 1.5) * 0.05;
+      draw3DPhone(950, 360, 280, 550, tilt, (sx, sy, sw, sh) => {
+        ctx.fillStyle = "#423f4f";
+        ctx.fillRect(sx, sy, sw, 55);
+
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 15px sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText("The Maestro's Journey", sx + 16, sy + 32);
+        ctx.fillStyle = "#fbbf24";
+        ctx.font = "bold 13px sans-serif";
+        ctx.fillText("★ 30/30", sx + sw - 65, sy + 32);
+
+        ctx.fillStyle = "#b49cee";
+        ctx.font = "bold 12px sans-serif";
+        ctx.fillText("CHAPTER 1 · The Building Blocks", sx + 16, sy + 85);
+
+        const levels = [
+          { num: 1, name: "Meet the Natural Anchor", sub: "C Note · Single Root", stars: "★★★", done: true, y: 120 },
+          { num: 2, name: "The Power 5th", sub: "C Power Chord (5th)", stars: "★★★", done: true, y: 195 },
+          { num: 3, name: "The Happy Third", sub: "C Major: 1(C) - 3(E) - 5(G)", stars: "★★★", active: true, y: 270 },
+          { num: 4, name: "The Emotional Shift", sub: "A Minor: 1(A) - 3(C) - 5(E)", stars: "★★★", done: true, y: 345 }
+        ];
+
+        levels.forEach(lvl => {
+          ctx.fillStyle = lvl.active ? "rgba(139, 124, 246, 0.25)" : "rgba(255, 255, 255, 0.05)";
+          ctx.beginPath();
+          ctx.roundRect(sx + 14, sy + lvl.y, sw - 28, 62, 10);
+          ctx.fill();
+
+          if (lvl.active) {
+            ctx.strokeStyle = "#8b7cf6";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
+
+          ctx.beginPath();
+          ctx.arc(sx + 36, sy + lvl.y + 31, 15, 0, Math.PI * 2);
+          ctx.fillStyle = lvl.active ? "#8b7cf6" : "#22c55e";
+          ctx.fill();
+
+          ctx.fillStyle = "#fff";
+          ctx.font = "bold 12px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(lvl.done ? "✓" : lvl.num, sx + 36, sy + lvl.y + 35);
+
+          ctx.textAlign = "left";
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 13px sans-serif";
+          ctx.fillText(lvl.name, sx + 62, sy + lvl.y + 26);
+
+          ctx.fillStyle = "#94a3b8";
+          ctx.font = "10px sans-serif";
+          ctx.fillText(lvl.sub, sx + 62, sy + lvl.y + 45);
+
+          ctx.fillStyle = "#fbbf24";
+          ctx.font = "11px sans-serif";
+          ctx.fillText(lvl.stars, sx + sw - 60, sy + lvl.y + 35);
+        });
+
+        drawTouchPointer(sx + sw / 2, sy + 300, 20, t);
+      });
+    }
+
+    // SCENE 3: LEARN A CHORD EXPLORER (15.0s - 22.5s)
+    function renderScene3(w, h, t, progress) {
+      drawCinematicBackground(w, h, t, "#1b1933");
+
+      ctx.save();
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#38bdf8";
+      ctx.font = "bold 16px sans-serif";
+      ctx.fillText("FEATURE 02 · FREE-FORM EXPLORER", 120, 170);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "900 48px sans-serif";
+      ctx.fillText("Learn a Chord", 120, 230);
+
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "19px sans-serif";
+      ctx.fillText("Explore 40+ chords across three progressive tiers:", 120, 275);
+
+      const tiers = [
+        { name: "Foundations", desc: "Roots, 5ths & Core Major / Minor Triads", color: "#8b7cf6" },
+        { name: "Intermediate", desc: "Suspended tension (Sus4/Sus2), Diminished & Augmented", color: "#10b981" },
+        { name: "Complex Harmonies", desc: "Dominant 7ths, Major 7ths & Minor 7th color voicings", color: "#ec4899" }
+      ];
+
+      tiers.forEach((tier, idx) => {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.06)";
+        ctx.beginPath();
+        ctx.roundRect(120, 315 + idx * 56, 440, 46, 10);
+        ctx.fill();
+
+        ctx.fillStyle = tier.color;
+        ctx.beginPath();
+        ctx.arc(142, 338 + idx * 56, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 15px sans-serif";
+        ctx.fillText(tier.name, 160, 334 + idx * 56);
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "12px sans-serif";
+        ctx.fillText(tier.desc, 160, 352 + idx * 56);
+      });
+
+      ctx.fillStyle = "#38bdf8";
+      ctx.font = "bold 15px sans-serif";
+      ctx.fillText("🔊 Real-time playback of full chords and individual notes", 120, 500);
+      ctx.restore();
+
+      const tilt = -Math.sin(t * 1.5) * 0.05;
+      draw3DPhone(950, 360, 280, 550, tilt, (sx, sy, sw, sh) => {
+        ctx.fillStyle = "#423f4f";
+        ctx.fillRect(sx, sy, sw, 55);
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 15px sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText("Learn a Chord", sx + 16, sy + 32);
+
+        ctx.fillStyle = "#4d4a5c";
+        ctx.beginPath();
+        ctx.roundRect(sx + 14, sy + 70, sw - 28, 410, 14);
+        ctx.fill();
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 20px sans-serif";
+        ctx.fillText("A Dominant 7th", sx + 26, sy + 105);
+
+        ctx.fillStyle = "#b49cee";
+        ctx.font = "12px sans-serif";
+        ctx.fillText("Formula: 1 - 3 - 5 - ♭7", sx + 26, sy + 128);
+
+        ctx.fillStyle = "rgba(0,0,0,0.2)";
+        ctx.beginPath();
+        ctx.roundRect(sx + 24, sy + 145, sw - 48, 65, 8);
+        ctx.fill();
+
+        ctx.fillStyle = "#fbbf24";
+        ctx.font = "bold 11px sans-serif";
+        ctx.fillText("💡 Music Theory Insight", sx + 34, sy + 165);
+        ctx.fillStyle = "#e2e8f0";
+        ctx.font = "10px sans-serif";
+        ctx.fillText("Natural G provides the iconic 7th flavor over", sx + 34, sy + 183);
+        ctx.fillText("A Major. Bluesy, bold and tension-filled.", sx + 34, sy + 198);
+
+        ctx.fillStyle = "#b8b5c4";
+        ctx.font = "bold 11px sans-serif";
+        ctx.fillText("VOICING NOTES (TAP TO AUDITION):", sx + 26, sy + 235);
+
+        const notes = [
+          { n: "A", role: "Root" },
+          { n: "C#", role: "Maj 3rd" },
+          { n: "E", role: "Perf 5th" },
+          { n: "G", role: "Minor 7th" }
+        ];
+
+        notes.forEach((item, idx) => {
+          const nx = sx + 24 + idx * ((sw - 48) / 4);
+          ctx.fillStyle = idx === 0 ? "#8b7cf6" : "#38344c";
+          ctx.beginPath();
+          ctx.roundRect(nx + 2, sy + 250, 48, 52, 8);
+          ctx.fill();
+
+          ctx.fillStyle = "#fff";
+          ctx.font = "bold 16px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(item.n, nx + 26, sy + 274);
+          ctx.fillStyle = "#cbd5e1";
+          ctx.font = "8px sans-serif";
+          ctx.fillText(item.role, nx + 26, sy + 292);
+        });
+
+        ctx.fillStyle = "#8b7cf6";
+        ctx.beginPath();
+        ctx.roundRect(sx + 24, sy + 325, (sw - 56) / 2, 40, 8);
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 12px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("▶ Play Chord", sx + 24 + (sw - 56) / 4, sy + 350);
+
+        ctx.fillStyle = "#38344c";
+        ctx.beginPath();
+        ctx.roundRect(sx + 28 + (sw - 56) / 2, sy + 325, (sw - 56) / 2, 40, 8);
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.fillText("♬ Arpeggiate", sx + 28 + (sw - 56) * 0.75, sy + 350);
+
+        drawTouchPointer(sx + 50, sy + 275, 18, t);
+      });
+    }
+
+    // SCENE 4: BUILD A CHORD FROM SCRATCH (22.5s - 30.0s)
+    function renderScene4(w, h, t, progress) {
+      drawCinematicBackground(w, h, t, "#161b33");
+
+      ctx.save();
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#10b981";
+      ctx.font = "bold 16px sans-serif";
+      ctx.fillText("FEATURE 03 · INTERACTIVE CREATION", 120, 170);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "900 48px sans-serif";
+      ctx.fillText("Build a Chord", 120, 230);
+
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "19px sans-serif";
+      ctx.fillText("Tap notes on the grid. Hear harmony in real time.", 120, 275);
+
+      const steps = [
+        "1. Choose session size (1, 3 or 5 chords in a row)",
+        "2. Tap keys on the A to G note grid",
+        "3. Long-press any key to pick sharps (#) and flats (♭)",
+        "4. Automatic chord identification & progression playback"
+      ];
+      steps.forEach((s, idx) => {
+        ctx.fillStyle = "rgba(16, 185, 129, 0.12)";
+        ctx.beginPath();
+        ctx.roundRect(120, 315 + idx * 44, 440, 34, 8);
+        ctx.fill();
+
+        ctx.fillStyle = "#f1f5f9";
+        ctx.font = "bold 14px sans-serif";
+        ctx.fillText(s, 136, 337 + idx * 44);
+      });
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.06)";
+      ctx.beginPath();
+      ctx.roundRect(120, 500, 440, 42, 8);
+      ctx.fill();
+      ctx.fillStyle = "#22c55e";
+      ctx.font = "bold 14px sans-serif";
+      ctx.fillText("✓ Progression Built: A Minor → B Diminished → G Major", 136, 526);
+      ctx.restore();
+
+      const tilt = Math.sin(t * 1.5) * 0.04;
+      draw3DPhone(950, 360, 280, 550, tilt, (sx, sy, sw, sh) => {
+        ctx.fillStyle = "#423f4f";
+        ctx.fillRect(sx, sy, sw, 55);
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 15px sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText("Build a Chord", sx + 16, sy + 32);
+
+        ctx.fillStyle = "#b49cee";
+        ctx.font = "bold 12px sans-serif";
+        ctx.fillText("Chord 1 of 3", sx + 16, sy + 80);
+
+        ctx.fillStyle = "#4d4a5c";
+        ctx.beginPath();
+        ctx.roundRect(sx + 14, sy + 95, sw - 28, 70, 10);
+        ctx.fill();
+
+        ctx.fillStyle = "#8b7cf6";
+        ctx.font = "bold 24px sans-serif";
+        ctx.fillText("C Major", sx + 28, sy + 130);
+        ctx.fillStyle = "#cbd5e1";
+        ctx.font = "12px sans-serif";
+        ctx.fillText("Notes: C · E · G  (Root, 3rd, 5th)", sx + 28, sy + 152);
+
+        ctx.fillStyle = "#b8b5c4";
+        ctx.font = "bold 11px sans-serif";
+        ctx.fillText("TAP NOTES BELOW:", sx + 16, sy + 195);
+
+        const keys = [
+          ["A", "B", "C", "D"],
+          ["E", "F", "G"]
+        ];
+
+        const activeNotes = ["C", "E", "G"];
+
+        keys[0].forEach((k, idx) => {
+          const kx = sx + 16 + idx * ((sw - 32) / 4);
+          const isActive = activeNotes.includes(k);
+          ctx.fillStyle = isActive ? "#8b7cf6" : "#423f4f";
+          ctx.beginPath();
+          ctx.roundRect(kx + 2, sy + 215, (sw - 48) / 4, 60, 10);
+          ctx.fill();
+
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 20px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(k, kx + 2 + (sw - 48) / 8, sy + 252);
+        });
+
+        keys[1].forEach((k, idx) => {
+          const kx = sx + 16 + idx * ((sw - 32) / 3);
+          const isActive = activeNotes.includes(k);
+          ctx.fillStyle = isActive ? "#8b7cf6" : "#423f4f";
+          ctx.beginPath();
+          ctx.roundRect(kx + 2, sy + 290, (sw - 48) / 3, 60, 10);
+          ctx.fill();
+
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 20px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(k, kx + 2 + (sw - 48) / 6, sy + 327);
+        });
+
+        ctx.fillStyle = "#8b7cf6";
+        ctx.beginPath();
+        ctx.roundRect(sx + 16, sy + 375, sw - 32, 48, 12);
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 14px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("Next Chord →", sx + sw / 2, sy + 404);
+
+        drawTouchPointer(sx + 175, sy + 245, 18, t);
+      });
+    }
+
+    // SCENE 5: SOUND DOJO EAR WORKOUTS (30.0s - 37.5s)
+    function renderScene5(w, h, t, progress) {
+      drawCinematicBackground(w, h, t, "#2b1928");
+
+      ctx.save();
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#f59e0b";
+      ctx.font = "bold 16px sans-serif";
+      ctx.fillText("FEATURE 04 · EAR TRAINING", 120, 170);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "900 48px sans-serif";
+      ctx.fillText("Sound Dojo", 120, 230);
+
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "19px sans-serif";
+      ctx.fillText("Fast-paced ear workouts that build pure musical instinct:", 120, 275);
+
+      const dojoModes = [
+        { name: "High vs Low", desc: "Which note sounded higher in pitch?", icon: "🎵" },
+        { name: "Happy vs Sad", desc: "Is the mystery chord Major or Minor?", icon: "😊" },
+        { name: "Missing Note", desc: "Identify the missing tone in the chord", icon: "🧩" }
+      ];
+
+      dojoModes.forEach((m, idx) => {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.06)";
+        ctx.beginPath();
+        ctx.roundRect(120, 315 + idx * 56, 440, 46, 10);
+        ctx.fill();
+
+        ctx.font = "18px sans-serif";
+        ctx.fillText(m.icon, 138, 344 + idx * 56);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 15px sans-serif";
+        ctx.fillText(m.name, 170, 334 + idx * 56);
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "12px sans-serif";
+        ctx.fillText(m.desc, 170, 352 + idx * 56);
+      });
+
+      ctx.fillStyle = "#ef4444";
+      ctx.beginPath();
+      ctx.roundRect(120, 495, 280, 50, 14);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 20px sans-serif";
+      ctx.fillText("🔥 5x COMBO STREAK!", 142, 527);
+      ctx.restore();
+
+      const tilt = -Math.sin(t * 1.5) * 0.04;
+      draw3DPhone(950, 360, 280, 550, tilt, (sx, sy, sw, sh) => {
+        ctx.fillStyle = "#423f4f";
+        ctx.fillRect(sx, sy, sw, 55);
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 15px sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText("🥋 Sound Dojo", sx + 16, sy + 32);
+
+        ctx.fillStyle = "#ef4444";
+        ctx.font = "bold 12px sans-serif";
+        ctx.textAlign = "right";
+        ctx.fillText("🔥 5x STREAK", sx + sw - 16, sy + 32);
+
+        const tabs = ["High vs Low", "Happy vs Sad", "Missing Note"];
+        tabs.forEach((tab, i) => {
+          const tx = sx + 12 + i * ((sw - 24) / 3);
+          ctx.fillStyle = i === 1 ? "#8b7cf6" : "#322f3d";
+          ctx.beginPath();
+          ctx.roundRect(tx + 2, sy + 70, (sw - 36) / 3, 30, 6);
+          ctx.fill();
+
+          ctx.fillStyle = "#fff";
+          ctx.font = "bold 9px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(tab, tx + 2 + (sw - 36) / 6, sy + 89);
+        });
+
+        ctx.fillStyle = "#4d4a5c";
+        ctx.beginPath();
+        ctx.roundRect(sx + 14, sy + 115, sw - 28, 95, 12);
+        ctx.fill();
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 14px sans-serif";
+        ctx.fillText("How did this chord feel?", sx + sw / 2, sy + 145);
+
+        for (let i = 0; i < 9; i++) {
+          const bh = 10 + Math.sin(t * 8 + i * 0.9) * 20;
+          ctx.fillStyle = "#f59e0b";
+          ctx.beginPath();
+          ctx.roundRect(sx + sw / 2 - 50 + i * 12, sy + 180 - bh / 2, 5, bh, 2);
+          ctx.fill();
+        }
+
+        ctx.fillStyle = "#22c55e";
+        ctx.beginPath();
+        ctx.roundRect(sx + 16, sy + 230, sw - 32, 58, 12);
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 16px sans-serif";
+        ctx.fillText("😊 Happy (Major)", sx + sw / 2, sy + 266);
+
+        ctx.fillStyle = "#374151";
+        ctx.beginPath();
+        ctx.roundRect(sx + 16, sy + 305, sw - 32, 58, 12);
+        ctx.fill();
+        ctx.fillStyle = "#cbd5e1";
+        ctx.fillText("😢 Sad (Minor)", sx + sw / 2, sy + 341);
+
+        ctx.fillStyle = "rgba(34, 197, 94, 0.95)";
+        ctx.beginPath();
+        ctx.roundRect(sx + 24, sy + 385, sw - 48, 42, 21);
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 14px sans-serif";
+        ctx.fillText("✓ CORRECT! +50 PTS", sx + sw / 2, sy + 411);
+
+        drawTouchPointer(sx + sw / 2, sy + 260, 20, t);
+      });
+    }
+
+    // SCENE 6: PROFILE, ACHIEVEMENTS & OUTRO CTA (37.5s - 45.0s)
+    function renderScene6(w, h, t, progress) {
+      drawCinematicBackground(w, h, t, "#351a54");
+
+      ctx.save();
+      ctx.textAlign = "center";
+
+      const logoSize = 100;
+      if (logoImg.complete && logoImg.naturalWidth > 0) {
+        ctx.save();
+        ctx.shadowColor = "rgba(139, 124, 246, 0.8)";
+        ctx.shadowBlur = 32;
+        ctx.beginPath();
+        ctx.roundRect(w / 2 - logoSize / 2, 110, logoSize, logoSize, 26);
+        ctx.clip();
+        ctx.drawImage(logoImg, w / 2 - logoSize / 2, 110, logoSize, logoSize);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = "#8b7cf6";
+        ctx.beginPath();
+        ctx.roundRect(w / 2 - logoSize / 2, 110, logoSize, logoSize, 26);
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 52px sans-serif";
+        ctx.fillText("♫", w / 2, 178);
+      }
+
+      ctx.font = "900 62px sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.shadowColor = "#8b7cf6";
+      ctx.shadowBlur = 28;
+      ctx.fillText("MusiXs", w / 2, 265);
+      ctx.shadowBlur = 0;
+
+      ctx.font = "bold 22px sans-serif";
+      ctx.fillStyle = "#c4b5fd";
+      ctx.fillText("A mobile music studio for learning, building and guessing chords", w / 2, 305);
+
+      ctx.font = "italic 18px sans-serif";
+      ctx.fillStyle = "#a78bfa";
+      ctx.fillText("“Learn music theory by touch, not textbook.”", w / 2, 340);
+
+      const badges = [
+        { title: "Chord Architect", sub: "Level 7 · 3425 XP", icon: "🏛️" },
+        { title: "2-Day Streak", sub: "Daily habit locked", icon: "🔥" },
+        { title: "Golden Ear", sub: "5/8 Badges Unlocked", icon: "👂" }
+      ];
+
+      badges.forEach((b, idx) => {
+        const bx = w / 2 + (idx - 1) * 260;
+        ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.16)";
+        ctx.beginPath();
+        ctx.roundRect(bx - 115, 385, 230, 56, 12);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = "22px sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText(b.icon, bx - 100, 420);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 13px sans-serif";
+        ctx.fillText(b.title, bx - 65, 410);
+
+        ctx.fillStyle = "#cbd5e1";
+        ctx.font = "11px sans-serif";
+        ctx.fillText(b.sub, bx - 65, 428);
+      });
+
+      const btnPulse = 1 + Math.sin(t * 5) * 0.03;
+      ctx.save();
+      ctx.translate(w / 2, 495);
+      ctx.scale(btnPulse, btnPulse);
+      ctx.fillStyle = "linear-gradient(135deg, #7c3aed, #a855f7)";
+      ctx.beginPath();
+      ctx.roundRect(-170, -28, 340, 56, 28);
+      ctx.fillStyle = "#8b7cf6";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "900 20px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("DOWNLOAD MUSIXS TODAY", 0, 7);
+      ctx.restore();
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
+      ctx.beginPath();
+      ctx.roundRect(w / 2 - 190, 545, 180, 44, 10);
+      ctx.roundRect(w / 2 + 10, 545, 180, 44, 10);
+      ctx.fill();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "11px sans-serif";
+      ctx.fillText("Available on the", w / 2 - 100, 562);
+      ctx.font = "bold 14px sans-serif";
+      ctx.fillText("App Store", w / 2 - 100, 578);
+
+      ctx.font = "11px sans-serif";
+      ctx.fillText("GET IT ON", w / 2 + 100, 562);
+      ctx.font = "bold 14px sans-serif";
+      ctx.fillText("Google Play", w / 2 + 100, 578);
+
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "12px sans-serif";
+      ctx.fillText("React Native  •  Expo SDK 57  •  SQLite  •  Supabase", w / 2, 620);
+
+      ctx.restore();
+    }
+
+    // ==========================================
+    // RENDER & RECORD AUTOMATION LOOP
+    // ==========================================
+    let recorder = null;
+    let chunks = [];
+    let lastT = 0;
+
+    function renderLoop(now) {
+      if (!lastT) lastT = now;
+      const delta = (now - lastT) / 1000;
+      lastT = now;
+
+      if (isRecording) {
+        currentTime += delta;
+        processAudio(currentTime);
+
+        const w = canvas.width;
+        const h = canvas.height;
+        const scene = SCENES.find(s => currentTime >= s.start && currentTime < s.end) || SCENES[SCENES.length - 1];
+        const progress = (currentTime - scene.start) / (scene.end - scene.start);
+
+        switch (scene.id) {
+          case 1: renderScene1(w, h, currentTime, progress); break;
+          case 2: renderScene2(w, h, currentTime, progress); break;
+          case 3: renderScene3(w, h, currentTime, progress); break;
+          case 4: renderScene4(w, h, currentTime, progress); break;
+          case 5: renderScene5(w, h, currentTime, progress); break;
+          case 6: renderScene6(w, h, currentTime, progress); break;
+        }
+
+        statusEl.innerText = `Recording: ${currentTime.toFixed(1)}s / ${TOTAL_DURATION}s (Scene ${scene.id}: ${scene.title})`;
+
+        if (currentTime >= TOTAL_DURATION) {
+          isRecording = false;
+          statusEl.innerText = "Finishing recording and uploading...";
+          recorder.stop();
+          return;
+        }
+      }
+
+      requestAnimationFrame(renderLoop);
+    }
+
+    window.startAutoRender = function() {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      currentTime = 0;
+      chunks = [];
+      const vStream = canvas.captureStream(60);
+      if (mediaDest.stream.getAudioTracks().length > 0) {
+        vStream.addTrack(mediaDest.stream.getAudioTracks()[0]);
+      }
+
+      const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus') ?
+        'video/webm;codecs=vp9,opus' : 'video/webm';
+
+      recorder = new MediaRecorder(vStream, {
+        mimeType: mime,
+        videoBitsPerSecond: 9000000
+      });
+
+      recorder.ondataavailable = e => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        const blob = new Blob(chunks, { type: mime });
+        statusEl.innerText = "Uploading recording to server...";
+        await fetch('/upload-promo', {
+          method: 'POST',
+          body: blob
+        });
+        statusEl.innerText = "Upload completed! Processing Master MP4...";
+      };
+
+      isRecording = true;
+      recorder.start();
+    };
+
+    setTimeout(() => {
+      window.startAutoRender();
+    }, 600);
+
+    requestAnimationFrame(renderLoop);
+  </script>
+</body>
+</html>

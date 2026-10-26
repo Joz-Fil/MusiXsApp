@@ -17,9 +17,7 @@ export async function dispatchResetCodeEmail(
   const cleanEmail = toEmail.trim().toLowerCase();
 
   // 1. Brevo (Sendinblue) API - Active API Key with full CORS & multi-recipient support
-  const brevoApiKey =
-    process.env.EXPO_PUBLIC_BREVO_API_KEY ||
-    "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";
+  const brevoApiKey = process.env.EXPO_PUBLIC_BREVO_API_KEY;
   const brevoSender = process.env.EXPO_PUBLIC_BREVO_SENDER_EMAIL || "ducyogendonl@gmail.com";
 
   if (brevoApiKey) {
@@ -58,9 +56,8 @@ export async function dispatchResetCodeEmail(
     }
   }
 
-  // 2. Resend API (https://resend.com - Active API key configured)
-  const resendApiKey =
-    process.env.EXPO_PUBLIC_RESEND_API_KEY || "re_eX7YijbV_4Gjx1HLaAqsufzvsMDHfEj8A";
+  // 2. Resend API (https://resend.com)
+  const resendApiKey = process.env.EXPO_PUBLIC_RESEND_API_KEY;
 
   if (resendApiKey) {
     // Browsers block direct client requests to api.resend.com with CORS preflight errors.
