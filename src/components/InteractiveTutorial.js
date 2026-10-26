@@ -3,6 +3,7 @@ import { Modal, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useAppTheme } from "../theme";
 import TouchButton from "./TouchButton";
 import VictoryCelebration from "./VictoryCelebration";
+import NoteGrid, { NoteKey } from "./NoteGrid";
 import { useAudio } from "../audio/AudioContext";
 import { markTutorialComplete } from "../services/learningService";
 import {
@@ -55,7 +56,7 @@ const TUTORIAL_STEPS = [
   },
   {
     step: 4,
-    category: "APP SHOWTHROUGH 🗺️",
+    category: "APP TOUR 🗺️",
     title: "4. The Maestro's Journey",
     subtitle: "Your step-by-step learning roadmap",
     body: "Never wonder what to practice next. The Journey guides you chapter by chapter with hands-on challenges on the 12-note grid.",
@@ -69,7 +70,7 @@ const TUTORIAL_STEPS = [
   },
   {
     step: 5,
-    category: "APP SHOWTHROUGH 🛠️🥋",
+    category: "APP TOUR 🛠️🥋",
     title: "5. Smart Builder & Sound Dojo",
     subtitle: "Touch sandbox & ear training gym",
     body: "Explore chords freely with real-time assistance and hone your ear with fast mini-games:",
@@ -86,14 +87,14 @@ const TUTORIAL_STEPS = [
         desc: "Train your ears with 3 mini-games: High vs Low Pitch, Happy vs Sad Mood, and Mystery Missing Note.",
       },
     ],
-    buttonLabel: "Next: Daily Habit →",
+    buttonLabel: "Next: Daily Hub →",
   },
   {
     step: 6,
-    category: "APP SHOWTHROUGH 📅",
+    category: "APP TOUR 📅",
     title: "6. Daily Hub & Streaks",
     subtitle: "Daily consistency builds great ears",
-    body: "Every day you open MusiXs, the Daily Hub organizes your musical practice strictly by priority:\n\n1. Priority #1: Your next unplayed Journey lesson\n2. Priority #2: Chord of the Day audio & formula\n3. Priority #3: Sound Dojo ear workout\n4. Priority #4: Path to Intermediate graduation checklist",
+    body: "Every day you open MusiXs, the Daily Hub organizes your musical practice strictly by priority:\n\n1. Priority #1: Your next unplayed Journey lesson\n2. Priority #2: Chord of the Day audio & formula\n3. Priority #3: Sound Dojo ear workout\n4. Priority #4: Path to Intermediate graduation checklist\n5. Priority #5: Daily Quests",
     type: "info_daily",
     buttonLabel: "Next: Road to Intermediate 🚀",
   },
@@ -140,11 +141,11 @@ export default function InteractiveTutorial({
       lastNoteTapRef.current = now;
       playChord([note]);
     }
-    if (!tappedNotes.includes(note)) {
-      const nextNotes = [...tappedNotes, note];
-      setTappedNotes(nextNotes);
-      updateTutorialSession({ tappedNotes: nextNotes });
-    }
+    setTappedNotes((prev) => {
+      const next = prev.includes(note) ? prev.filter((n) => n !== note) : [...prev, note];
+      updateTutorialSession({ tappedNotes: next });
+      return next;
+    });
   };
 
   const handlePlayChord = (notes) => {
@@ -476,13 +477,35 @@ export default function InteractiveTutorial({
                 </View>
               )}
 
-              {/* Advance action button */}
-              <TouchButton
-                style={[styles.primaryButton, { backgroundColor: colors.purple, marginTop: 10 }]}
-                onPress={handleNext}
-              >
-                <Text style={styles.primaryButtonText}>{currentStep.buttonLabel}</Text>
-              </TouchButton>
+              {/* Navigation buttons */}
+              <View style={styles.navRow}>
+                {currentStepIndex > 0 && (
+                  <TouchButton
+                    style={[
+                      styles.secondaryButton,
+                      { flex: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
+                    ]}
+                    onPress={() => {
+                      const prevIdx = currentStepIndex - 1;
+                      setCurrentStepIndex(prevIdx);
+                      updateTutorialSession({ currentStepIndex: prevIdx });
+                    }}
+                  >
+                    <Text style={[styles.secondaryButtonText, { color: colors.textMuted }]}>
+                      ← Back
+                    </Text>
+                  </TouchButton>
+                )}
+                <TouchButton
+                  style={[
+                    styles.primaryButton,
+                    { flex: currentStepIndex > 0 ? 2 : 1, backgroundColor: colors.purple },
+                  ]}
+                  onPress={handleNext}
+                >
+                  <Text style={styles.primaryButtonText}>{currentStep.buttonLabel}</Text>
+                </TouchButton>
+              </View>
             </ScrollView>
           )}
         </View>
@@ -726,6 +749,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
     lineHeight: 16,
+  },
+  navRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 10,
   },
   primaryButton: {
     paddingVertical: 14,

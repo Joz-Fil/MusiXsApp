@@ -76,7 +76,7 @@ export default function NoteGrid({
   );
 }
 
-function NoteKey({ note, colors, isSelected, isSuggested, onPress, onLongPress, disabled }) {
+export function NoteKey({ note, colors, isSelected, isSuggested, onPress, onLongPress, disabled }) {
   const longPressTimer = useRef(null);
   const flashAnim = useRef(new Animated.Value(0)).current;
 
