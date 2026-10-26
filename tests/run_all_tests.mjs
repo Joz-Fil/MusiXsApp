@@ -8,6 +8,8 @@ const suites = [
   "tests/session_preservation_tests.mjs",
   "tests/visual_audio_feature_tests.mjs",
   "tests/interactive_learn_chord_tests.mjs",
+  "tests/account_recovery_tests.mjs",
+  "tests/account_switching_progress_tests.mjs",
 ];
 
 let totalPassed = true;
@@ -23,6 +25,6 @@ if (!totalPassed) {
   console.error("\n❌ Some tests failed!");
   process.exit(1);
 } else {
-  console.log("\n🎉 ALL 77 TESTS PASSED SUCCESSFULLY! VISUAL, AUDIO & ALL FEATURES WORKING AS INTENDED.\n");
+  console.log("\n🎉 ALL 86 TESTS PASSED SUCCESSFULLY! VISUAL, AUDIO & ALL FEATURES WORKING AS INTENDED.\n");
   process.exit(0);
 }

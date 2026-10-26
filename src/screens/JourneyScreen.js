@@ -20,6 +20,7 @@ import {
   updateJourneySession,
   resetJourneySession,
   updateLearnChordSession,
+  subscribeSessionStore,
 } from "../services/sessionStore";
 import {
   findChordForJourneyLevel,
@@ -70,6 +71,16 @@ export default function JourneyScreen({ onBack, onNavigate }) {
 
   useEffect(() => {
     loadProgress();
+    const unsub = subscribeSessionStore(() => {
+      loadProgress();
+      const js = getJourneySession();
+      if (!js.activeLevelId) {
+        setActiveLevel(null);
+        setSelectedNotes([]);
+        setChallengeResult(null);
+      }
+    });
+    return unsub;
   }, []);
 
   const totalStars = Object.values(progress || {}).reduce((acc, curr) => acc + (curr?.stars || 0), 0);

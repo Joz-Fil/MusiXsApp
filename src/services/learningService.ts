@@ -367,11 +367,23 @@ export function calculateLevel(xp: number): {
 }
 
 // ---------------------------------------------------------------------------
-// Database Queries
+// Database Queries (Scoped per active user)
 // ---------------------------------------------------------------------------
+
+async function getActiveUserId(db: any): Promise<number> {
+  try {
+    const session = (await db.getFirstAsync(
+      "SELECT user_id FROM app_session WHERE id = 1"
+    )) as { user_id: number } | null;
+    return session?.user_id ?? 0;
+  } catch {
+    return 0;
+  }
+}
 
 export async function getUserStats(): Promise<UserStats> {
   return withDatabase("getUserStats", async (db) => {
+    const userId = await getActiveUserId(db);
     let row = await db.getFirstAsync<{
       xp: number;
       streak_count: number;
@@ -379,13 +391,14 @@ export async function getUserStats(): Promise<UserStats> {
       tutorial_completed: number;
       onboarding_answered?: number;
       is_beginner?: number;
-    }>("SELECT xp, streak_count, last_active_date, tutorial_completed, onboarding_answered, is_beginner FROM user_stats WHERE id = 1");
+    }>("SELECT xp, streak_count, last_active_date, tutorial_completed, onboarding_answered, is_beginner FROM user_stats WHERE user_id = ?", userId);
 
     const todayStr = new Date().toISOString().split("T")[0];
 
     if (!row) {
       await db.runAsync(
-        "INSERT INTO user_stats (id, xp, streak_count, last_active_date, tutorial_completed, onboarding_answered, is_beginner) VALUES (1, 0, 1, ?, 0, 0, 1)",
+        "INSERT INTO user_stats (user_id, xp, streak_count, last_active_date, tutorial_completed, onboarding_answered, is_beginner) VALUES (?, 0, 1, ?, 0, 0, 1)",
+        userId,
         todayStr
       );
       row = { xp: 0, streak_count: 1, last_active_date: todayStr, tutorial_completed: 0, onboarding_answered: 0, is_beginner: 1 };
@@ -403,9 +416,10 @@ export async function getUserStats(): Promise<UserStats> {
         }
       }
       await db.runAsync(
-        "UPDATE user_stats SET streak_count = ?, last_active_date = ? WHERE id = 1",
+        "UPDATE user_stats SET streak_count = ?, last_active_date = ? WHERE user_id = ?",
         newStreak,
-        todayStr
+        todayStr,
+        userId
       );
       row.streak_count = newStreak;
       row.last_active_date = todayStr;
@@ -430,24 +444,41 @@ export async function getUserStats(): Promise<UserStats> {
 
 export async function setOnboardingAnswered(isBeginner: boolean): Promise<void> {
   await withDatabase("setOnboardingAnswered", async (db) => {
-    await db.runAsync(
-      "UPDATE user_stats SET onboarding_answered = 1, is_beginner = ? WHERE id = 1",
-      isBeginner ? 1 : 0
+    const userId = await getActiveUserId(db);
+    const existing = await db.getFirstAsync<{ user_id: number }>(
+      "SELECT user_id FROM user_stats WHERE user_id = ?",
+      userId
     );
+    if (!existing) {
+      const todayStr = new Date().toISOString().split("T")[0];
+      await db.runAsync(
+        "INSERT INTO user_stats (user_id, xp, streak_count, last_active_date, tutorial_completed, onboarding_answered, is_beginner) VALUES (?, 0, 1, ?, 0, 1, ?)",
+        userId,
+        todayStr,
+        isBeginner ? 1 : 0
+      );
+    } else {
+      await db.runAsync(
+        "UPDATE user_stats SET onboarding_answered = 1, is_beginner = ? WHERE user_id = ?",
+        isBeginner ? 1 : 0,
+        userId
+      );
+    }
   });
 }
 
 export async function addXP(amount: number): Promise<{ newXp: number; leveledUp: boolean; newLevel: number }> {
   return withDatabase("addXP", async (db) => {
-    const stats = await db.getFirstAsync<{ xp: number }>("SELECT xp FROM user_stats WHERE id = 1");
+    const userId = await getActiveUserId(db);
+    const stats = await db.getFirstAsync<{ xp: number }>("SELECT xp FROM user_stats WHERE user_id = ?", userId);
     const currentXp = stats?.xp || 0;
     const oldLevel = calculateLevel(currentXp).level;
     const newXp = currentXp + amount;
     const newLevel = calculateLevel(newXp).level;
 
     await db.runAsync(
-      "INSERT INTO user_stats (id, xp) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET xp = ?",
-      newXp,
+      "INSERT INTO user_stats (user_id, xp) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET xp = excluded.xp",
+      userId,
       newXp
     );
 
@@ -461,7 +492,21 @@ export async function addXP(amount: number): Promise<{ newXp: number; leveledUp:
 
 export async function markTutorialComplete(): Promise<void> {
   await withDatabase("markTutorialComplete", async (db) => {
-    await db.runAsync("UPDATE user_stats SET tutorial_completed = 1, onboarding_answered = 1 WHERE id = 1");
+    const userId = await getActiveUserId(db);
+    const existing = await db.getFirstAsync<{ user_id: number }>(
+      "SELECT user_id FROM user_stats WHERE user_id = ?",
+      userId
+    );
+    if (!existing) {
+      const todayStr = new Date().toISOString().split("T")[0];
+      await db.runAsync(
+        "INSERT INTO user_stats (user_id, xp, streak_count, last_active_date, tutorial_completed, onboarding_answered, is_beginner) VALUES (?, 0, 1, ?, 1, 1, 1)",
+        userId,
+        todayStr
+      );
+    } else {
+      await db.runAsync("UPDATE user_stats SET tutorial_completed = 1, onboarding_answered = 1 WHERE user_id = ?", userId);
+    }
   });
   await unlockBadge("first_chord");
   await addXP(100);
@@ -469,8 +514,10 @@ export async function markTutorialComplete(): Promise<void> {
 
 export async function getLevelProgress(): Promise<Record<string, { stars: number; score: number }>> {
   return withDatabase("getLevelProgress", async (db) => {
+    const userId = await getActiveUserId(db);
     const rows = await db.getAllAsync<{ level_id: string; stars: number; score: number }>(
-      "SELECT level_id, stars, score FROM user_progress"
+      "SELECT level_id, stars, score FROM user_progress WHERE user_id = ?",
+      userId
     );
     const map: Record<string, { stars: number; score: number }> = {};
     for (const r of rows) {
@@ -486,15 +533,18 @@ export async function saveLevelProgress(
   score: number
 ): Promise<{ newStars: number; xpEarned: number }> {
   return withDatabase("saveLevelProgress", async (db) => {
+    const userId = await getActiveUserId(db);
     const existing = await db.getFirstAsync<{ stars: number }>(
-      "SELECT stars FROM user_progress WHERE level_id = ?",
+      "SELECT stars FROM user_progress WHERE user_id = ? AND level_id = ?",
+      userId,
       levelId
     );
     const prevStars = existing?.stars || 0;
     const bestStars = Math.max(prevStars, stars);
 
     await db.runAsync(
-      "INSERT INTO user_progress (level_id, stars, score) VALUES (?, ?, ?) ON CONFLICT(level_id) DO UPDATE SET stars = ?, score = MAX(score, ?)",
+      "INSERT INTO user_progress (user_id, level_id, stars, score) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, level_id) DO UPDATE SET stars = ?, score = MAX(score, ?)",
+      userId,
       levelId,
       bestStars,
       score,
@@ -510,7 +560,8 @@ export async function saveLevelProgress(
     // Check Chapter 1 completion badge
     const ch1Levels = JOURNEY_LEVELS.filter((l) => l.chapter === 1).map((l) => l.id);
     const ch1Finished = await db.getAllAsync<{ level_id: string }>(
-      `SELECT level_id FROM user_progress WHERE level_id IN (${ch1Levels.map(() => "?").join(",")}) AND stars > 0`,
+      `SELECT level_id FROM user_progress WHERE user_id = ? AND level_id IN (${ch1Levels.map(() => "?").join(",")}) AND stars > 0`,
+      userId,
       ...ch1Levels
     );
     if (ch1Finished.length === ch1Levels.length) {
@@ -519,7 +570,8 @@ export async function saveLevelProgress(
 
     // Check Star Collector badge (15 stars)
     const totalStars = await db.getFirstAsync<{ total: number }>(
-      "SELECT SUM(stars) as total FROM user_progress"
+      "SELECT SUM(stars) as total FROM user_progress WHERE user_id = ?",
+      userId
     );
     if ((totalStars?.total || 0) >= 15) {
       await unlockBadge("star_collector");
@@ -533,8 +585,10 @@ export async function getBadges(): Promise<
   (BadgeDefinition & { unlocked: boolean; unlockedAt: string | null })[]
 > {
   return withDatabase("getBadges", async (db) => {
+    const userId = await getActiveUserId(db);
     const rows = await db.getAllAsync<{ badge_id: string; unlocked_at: string }>(
-      "SELECT badge_id, unlocked_at FROM user_badges"
+      "SELECT badge_id, unlocked_at FROM user_badges WHERE user_id = ?",
+      userId
     );
     const unlockedMap = new Map(rows.map((r) => [r.badge_id, r.unlocked_at]));
 
@@ -548,13 +602,15 @@ export async function getBadges(): Promise<
 
 export async function unlockBadge(badgeId: string): Promise<boolean> {
   return withDatabase("unlockBadge", async (db) => {
+    const userId = await getActiveUserId(db);
     const existing = await db.getFirstAsync<{ badge_id: string }>(
-      "SELECT badge_id FROM user_badges WHERE badge_id = ?",
+      "SELECT badge_id FROM user_badges WHERE user_id = ? AND badge_id = ?",
+      userId,
       badgeId
     );
     if (existing) return false;
 
-    await db.runAsync("INSERT INTO user_badges (badge_id) VALUES (?)", badgeId);
+    await db.runAsync("INSERT INTO user_badges (user_id, badge_id) VALUES (?, ?)", userId, badgeId);
     const badgeDef = BADGE_DEFINITIONS.find((b) => b.id === badgeId);
     if (badgeDef) {
       await addXP(badgeDef.xpReward);
@@ -582,17 +638,20 @@ export async function getDailyQuests(): Promise<DailyQuest[]> {
   ];
 
   return withDatabase("getDailyQuests", async (db) => {
+    const userId = await getActiveUserId(db);
     const results: DailyQuest[] = [];
     for (const q of QUEST_TEMPLATES) {
       let row = await db.getFirstAsync<{ progress: number; completed: number }>(
-        "SELECT progress, completed FROM daily_quests WHERE quest_id = ? AND quest_date = ?",
+        "SELECT progress, completed FROM daily_quests WHERE user_id = ? AND quest_id = ? AND quest_date = ?",
+        userId,
         q.id,
         todayStr
       );
 
       if (!row) {
         await db.runAsync(
-          "INSERT INTO daily_quests (quest_id, quest_date, progress, target, completed) VALUES (?, ?, 0, ?, 0)",
+          "INSERT INTO daily_quests (user_id, quest_id, quest_date, progress, target, completed) VALUES (?, ?, ?, 0, ?, 0)",
+          userId,
           q.id,
           todayStr,
           q.target
@@ -617,8 +676,10 @@ export async function getDailyQuests(): Promise<DailyQuest[]> {
 export async function incrementQuestProgress(questId: string, amount = 1): Promise<boolean> {
   const todayStr = new Date().toISOString().split("T")[0];
   return withDatabase("incrementQuestProgress", async (db) => {
+    const userId = await getActiveUserId(db);
     const row = await db.getFirstAsync<{ progress: number; target: number; completed: number }>(
-      "SELECT progress, target, completed FROM daily_quests WHERE quest_id = ? AND quest_date = ?",
+      "SELECT progress, target, completed FROM daily_quests WHERE user_id = ? AND quest_id = ? AND quest_date = ?",
+      userId,
       questId,
       todayStr
     );
@@ -628,9 +689,10 @@ export async function incrementQuestProgress(questId: string, amount = 1): Promi
     const isCompleted = newProgress >= row.target ? 1 : 0;
 
     await db.runAsync(
-      "UPDATE daily_quests SET progress = ?, completed = ? WHERE quest_id = ? AND quest_date = ?",
+      "UPDATE daily_quests SET progress = ?, completed = ? WHERE user_id = ? AND quest_id = ? AND quest_date = ?",
       newProgress,
       isCompleted,
+      userId,
       questId,
       todayStr
     );

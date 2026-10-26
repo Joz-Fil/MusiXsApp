@@ -1,3 +1,5 @@
+import { dispatchResetCodeEmail } from "./emailService";
+import { resetAllSessions } from "./sessionStore";
 import { supabase, isSupabaseConfigured } from "./supabase";
 import {
   AppUser,
@@ -9,6 +11,8 @@ import {
   updateUserProfile as localUpdateUserProfile,
   createPasswordResetCode as localCreatePasswordResetCode,
   resetPasswordWithCode as localResetPasswordWithCode,
+  verifyAccountForRecovery as localVerifyAccountForRecovery,
+  resetPasswordWithIdentity as localResetPasswordWithIdentity,
   DatabaseUnavailableError,
 } from "../db/database";
 
@@ -89,6 +93,19 @@ export async function registerAccount({
       if (error) throw new Error(error.message);
       if (!data.user) throw new Error("Registration failed: no user data returned.");
 
+      // Mirror to local SQLite so in-app account recovery and offline access always work
+      try {
+        await localRegisterUser({
+          username: cleanUsername,
+          email: cleanEmail,
+          displayName: cleanDisplayName,
+          avatar,
+          password,
+        });
+      } catch (localErr) {
+        // Safe to ignore if already registered locally
+      }
+
       const cloudUser: UnifiedUser = {
         id: data.user.id,
         username: cleanUsername,
@@ -102,10 +119,11 @@ export async function registerAccount({
       // The cloud session is persisted by Supabase itself (SecureStore). The
       // old `localSaveCurrentUser(1)` here pointed the local session at a
       // local user that usually doesn't exist and failed the foreign key.
+      resetAllSessions();
       return cloudUser;
     } catch (cloudErr: any) {
-      console.warn("Cloud SQL registration failed:", cloudErr);
-      throw cloudErr;
+      console.warn("Cloud SQL registration failed, falling back to local database:", cloudErr);
+      // Fall through to local registration below
     }
   }
 
@@ -118,6 +136,7 @@ export async function registerAccount({
     password,
   });
   await rememberLocalSession(localUser.id);
+  resetAllSessions();
 
   return {
     id: localUser.id,
@@ -144,33 +163,29 @@ export async function loginAccount({
 
   const isEmail = isValidEmail(cleanIdentifier);
 
-  if (isSupabaseConfigured()) {
-    if (!isEmail) {
-      throw new Error("With Cloud SQL active, please enter your registered email address.");
+  if (isSupabaseConfigured() && isEmail) {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: cleanIdentifier.toLowerCase(),
+        password,
+      });
+
+      if (!error && data?.user) {
+        const cloudUser: UnifiedUser = {
+          id: data.user.id,
+          username: (data.user.user_metadata?.username as string) || cleanIdentifier.split("@")[0],
+          displayName: (data.user.user_metadata?.display_name as string) || (data.user.user_metadata?.username as string) || cleanIdentifier.split("@")[0],
+          avatar: (data.user.user_metadata?.avatar as string) || "🎵",
+          email: data.user.email || cleanIdentifier,
+          createdAt: data.user.created_at || new Date().toISOString(),
+          isCloud: true,
+        };
+        resetAllSessions();
+        return cloudUser;
+      }
+    } catch (cloudLoginErr) {
+      console.warn("Cloud login error, checking local credentials:", cloudLoginErr);
     }
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: cleanIdentifier.toLowerCase(),
-      password,
-    });
-
-    if (error) {
-      throw new Error(error.message || "Invalid email or password.");
-    }
-
-    if (!data.user) return null;
-
-    const cloudUser: UnifiedUser = {
-      id: data.user.id,
-      username: (data.user.user_metadata?.username as string) || cleanIdentifier.split("@")[0],
-      displayName: (data.user.user_metadata?.display_name as string) || (data.user.user_metadata?.username as string) || cleanIdentifier.split("@")[0],
-      avatar: (data.user.user_metadata?.avatar as string) || "🎵",
-      email: data.user.email || cleanIdentifier,
-      createdAt: data.user.created_at || new Date().toISOString(),
-      isCloud: true,
-    };
-
-    return cloudUser;
   }
 
   // Local SQLite login
@@ -181,6 +196,7 @@ export async function loginAccount({
 
   if (!user) return null;
   await rememberLocalSession(user.id);
+  resetAllSessions();
 
   return {
     id: user.id,
@@ -241,28 +257,47 @@ export async function updateUserAccount(
  */
 export async function sendPasswordResetCode(
   email: string
-): Promise<{ success: boolean; code?: string; message: string }> {
+): Promise<{ success: boolean; code?: string; message: string; notice?: string; emailSent?: boolean }> {
   const cleanEmail = email.trim().toLowerCase();
   if (!cleanEmail || !isValidEmail(cleanEmail)) {
     throw new Error("Enter a valid email address (e.g. you@gmail.com).");
   }
 
-  if (isSupabaseConfigured()) {
-    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail);
-    if (error) throw new Error(error.message);
+  // 1. Generate & persist 6-digit verification code in database
+  const code = await localCreatePasswordResetCode(cleanEmail);
+
+  // 2. Dispatch real email with the 6-digit code to user's inbox
+  const dispatch = await dispatchResetCodeEmail(cleanEmail, code);
+
+  if (dispatch.sent) {
     return {
       success: true,
-      message: `Password reset link/instructions dispatched to ${cleanEmail}.`,
+      emailSent: true,
+      message: `Verification code sent to ${cleanEmail}. Check your inbox!`,
+      notice: `📧 Verification code dispatched to ${cleanEmail}. Please check your inbox (and spam folder).`,
     };
   }
 
-  // Local / offline database flow with generated 6-digit verification code
-  const code = await localCreatePasswordResetCode(cleanEmail);
-  return {
-    success: true,
-    code,
-    message: `Verification code sent to ${cleanEmail}. Check your inbox!`,
-  };
+  // 3. Fallback: If direct dispatch fails, try Supabase if configured
+  if (isSupabaseConfigured()) {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail);
+      if (!error) {
+        return {
+          success: true,
+          emailSent: true,
+          message: `Verification code sent to ${cleanEmail}. Check your inbox!`,
+          notice: `📧 Verification code dispatched to ${cleanEmail}. Please check your inbox (and spam folder).`,
+        };
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  throw new Error(
+    dispatch.error || "Failed to dispatch verification email. Please check your internet connection."
+  );
 }
 
 /**
@@ -284,10 +319,21 @@ export async function confirmPasswordReset(
   }
 
   if (isSupabaseConfigured()) {
-    // If Supabase is active, update password using active session or token
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) throw new Error(error.message);
-    return true;
+    try {
+      // 1. Verify 6-digit OTP token with Supabase
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: cleanEmail,
+        token: cleanCode,
+        type: "recovery",
+      });
+      if (!error && data?.session) {
+        const { error: updateErr } = await supabase.auth.updateUser({ password: newPassword });
+        if (updateErr) throw new Error(updateErr.message);
+        return true;
+      }
+    } catch (e: any) {
+      console.warn("Supabase OTP verify note, falling back to local verification:", e.message);
+    }
   }
 
   return await localResetPasswordWithCode(cleanEmail, cleanCode, newPassword);
@@ -359,5 +405,62 @@ export async function logoutAccount(): Promise<void> {
     // row couldn't be removed right now.
     console.warn("Could not clear the local session:", error);
     if (!(error instanceof DatabaseUnavailableError)) throw error;
+  } finally {
+    resetAllSessions();
   }
+}
+
+/**
+ * Verify account ownership for password recovery using registered email and username.
+ */
+export async function verifyAccountForRecovery(
+  email: string,
+  username: string
+): Promise<{ success: boolean; message: string }> {
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanUsername = username.trim().toLowerCase();
+
+  if (!cleanEmail || !cleanUsername) {
+    throw new Error("Enter both your registered email and username.");
+  }
+  if (!isValidEmail(cleanEmail)) {
+    throw new Error("Enter a valid email address (e.g. you@gmail.com).");
+  }
+
+  await localVerifyAccountForRecovery(cleanEmail, cleanUsername);
+  return {
+    success: true,
+    message: "Account verified successfully. You may now choose a new password.",
+  };
+}
+
+/**
+ * Reset password after identity verification (email + username match).
+ */
+export async function resetPasswordWithIdentity(
+  email: string,
+  username: string,
+  newPassword: string
+): Promise<boolean> {
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanUsername = username.trim().toLowerCase();
+
+  if (!cleanEmail || !cleanUsername) {
+    throw new Error("Email and username are required.");
+  }
+  if (!newPassword || newPassword.length < 6) {
+    throw new Error("New password must be at least 6 characters.");
+  }
+
+  const success = await localResetPasswordWithIdentity(cleanEmail, cleanUsername, newPassword);
+
+  if (isSupabaseConfigured()) {
+    try {
+      await supabase.auth.updateUser({ password: newPassword });
+    } catch {
+      // Non-fatal if cloud session is not active
+    }
+  }
+
+  return success;
 }

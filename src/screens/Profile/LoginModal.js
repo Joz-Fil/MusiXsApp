@@ -98,11 +98,7 @@ export default function LoginModal({ visible, onClose, onSubmit }) {
     setSubmitting(true);
     try {
       const result = await sendPasswordResetCode(cleanEmail);
-      if (result.code) {
-        setInfoNotice(`📧 [DEV SIMULATION] Your 6-digit pin code is: ${result.code}`);
-      } else {
-        setInfoNotice(`📧 Verification code sent to ${cleanEmail}. Please check your Gmail inbox.`);
-      }
+      setInfoNotice(result.notice || `📧 Verification code sent to ${cleanEmail}. Please check your inbox (and spam folder).`);
       setSuccessMsg(result.message);
       setViewMode("forgot_code");
     } catch (err) {
@@ -114,7 +110,7 @@ export default function LoginModal({ visible, onClose, onSubmit }) {
 
   const handleConfirmReset = async () => {
     const cleanCode = resetCode.trim();
-    if (!cleanCode) {
+    if (!cleanCode || cleanCode.length !== 6) {
       setError("Please enter the 6-digit verification code.");
       return;
     }
@@ -133,9 +129,13 @@ export default function LoginModal({ visible, onClose, onSubmit }) {
       await confirmPasswordReset(resetEmail.trim(), cleanCode, newPassword);
       setSuccessMsg("✓ Password reset successfully! You can now log in.");
       setIdentifier(resetEmail.trim());
+      setPassword("");
+      setResetCode("");
+      setNewPassword("");
+      setConfirmNewPassword("");
       setViewMode("login");
     } catch (err) {
-      setError(err.message || "Failed to reset password. Check your code.");
+      setError(err.message || "Failed to reset password. Check your verification code.");
     } finally {
       setSubmitting(false);
     }
@@ -217,7 +217,9 @@ export default function LoginModal({ visible, onClose, onSubmit }) {
                   onPress={() => {
                     setError("");
                     setSuccessMsg("");
-                    setResetEmail(identifier.includes("@") ? identifier : "");
+                    setResetEmail(identifier.includes("@") ? identifier.trim() : "");
+                    setResetCode("");
+                    setInfoNotice("");
                     setViewMode("forgot_email");
                   }}
                 >
@@ -247,7 +249,7 @@ export default function LoginModal({ visible, onClose, onSubmit }) {
               </>
             )}
 
-            {/* VIEW 2: Forgot Password - Step 1: Send Code */}
+            {/* VIEW 2: Forgot Password - Step 1: Send Code to Email */}
             {viewMode === "forgot_email" && (
               <>
                 <Text style={[styles.title, { color: colors.text }]}>Reset Password</Text>
@@ -307,12 +309,12 @@ export default function LoginModal({ visible, onClose, onSubmit }) {
               </>
             )}
 
-            {/* VIEW 3: Forgot Password - Step 2: Verify Code & Set New Password */}
+            {/* VIEW 3: Forgot Password - Step 2: Input 6-Digit Code & New Password */}
             {viewMode === "forgot_code" && (
               <>
                 <Text style={[styles.title, { color: colors.text }]}>Enter Code</Text>
                 <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-                  We sent a 6-digit code to {resetEmail}.
+                  We sent a 6-digit verification code to {resetEmail}.
                 </Text>
 
                 {!!infoNotice && (

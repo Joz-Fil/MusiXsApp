@@ -325,3 +325,14 @@ export function resetProfileDraftSession(): void {
   currentProfileDraftSession = { ...DEFAULT_PROFILE_DRAFT_SESSION };
   notifyListeners();
 }
+
+// Reset all in-memory sessions across the app (used when switching accounts or logging out)
+export function resetAllSessions(): void {
+  resetBuildChordSession();
+  resetLearnChordSession();
+  resetJourneySession();
+  resetGuessChordSession();
+  resetDojoSession();
+  resetTutorialSession();
+  resetProfileDraftSession();
+}
