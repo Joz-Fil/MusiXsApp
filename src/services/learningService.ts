@@ -491,12 +491,15 @@ export async function addXP(amount: number): Promise<{ newXp: number; leveledUp:
 }
 
 export async function markTutorialComplete(): Promise<void> {
+  let wasAlreadyCompleted = false;
   await withDatabase("markTutorialComplete", async (db) => {
     const userId = await getActiveUserId(db);
-    const existing = await db.getFirstAsync<{ user_id: number }>(
-      "SELECT user_id FROM user_stats WHERE user_id = ?",
+    const existing = await db.getFirstAsync<{ user_id: number; tutorial_completed: number }>(
+      "SELECT user_id, tutorial_completed FROM user_stats WHERE user_id = ?",
       userId
     );
+    wasAlreadyCompleted = !!existing && existing.tutorial_completed === 1;
+
     if (!existing) {
       const todayStr = new Date().toISOString().split("T")[0];
       await db.runAsync(
@@ -508,8 +511,10 @@ export async function markTutorialComplete(): Promise<void> {
       await db.runAsync("UPDATE user_stats SET tutorial_completed = 1, onboarding_answered = 1 WHERE user_id = ?", userId);
     }
   });
-  await unlockBadge("first_chord");
-  await addXP(100);
+  if (!wasAlreadyCompleted) {
+    await unlockBadge("first_chord");
+    await addXP(100);
+  }
 }
 
 export async function getLevelProgress(): Promise<Record<string, { stars: number; score: number }>> {
